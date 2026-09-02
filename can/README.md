@@ -111,11 +111,11 @@ can/
 
 | 接口 | 平台 | 备注 |
 |------|------|------|
-| `pcan` | Windows | 需安装 PEAK 驱动 |
-| `vector` | Windows | 需安装 Vector XL Driver Library |
-| `ixxat` | Windows | 需安装 IXXAT VCI 驱动 |
-| `kvaser` | Windows / Linux | 需安装 Kvaser CANlib |
-| `slcan` | Windows / Linux | 串口转 CAN，需 pyserial |
-| `socketcan` | Linux | 内核原生支持 |
+| `socketcan` | Linux | 内核原生支持，推荐优先使用 |
+| `slcan` | Linux | 串口转 CAN，需 pyserial |
+| `kvaser` | Linux | 需安装 Kvaser Linux 驱动与 CANlib |
+| `pcan` | Linux | 需内核 `peak_usb` 驱动，也可直接以 `socketcan` 接入 |
+| `ixxat` | Linux | 需安装 IXXAT ECI Linux 驱动 |
+| `vector` | Windows only | 仅提供 Windows XL Driver Library，Linux 不可用 |
 | `gs_usb` | Linux | candleLight / CANable 等 gs_usb 固件设备 |
 | `virtual` | 全平台 | 虚拟总线，用于测试 |

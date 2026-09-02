@@ -43,39 +43,9 @@ def scan_usb_devices():
         return []
 
     found = []
-    is_windows = platform.system() == "Windows"
 
-    if is_windows:
-        try:
-            import subprocess
-            result = subprocess.run(
-                ["powershell", "-Command",
-                 "Get-PnpDevice -Class USB -Status OK | Select-Object -Property InstanceId,FriendlyName | ConvertTo-Json"],
-                capture_output=True, text=True, timeout=10
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                devices = json.loads(result.stdout)
-                if isinstance(devices, dict):
-                    devices = [devices]
-                for dev in devices:
-                    instance_id = dev.get("InstanceId", "").upper()
-                    friendly = dev.get("FriendlyName", "")
-                    for known in known_devices:
-                        vid = known["vid"].upper()
-                        pid = known["pid"].upper()
-                        if f"VID_{vid}" in instance_id and f"PID_{pid}" in instance_id:
-                            found.append({
-                                "name": known["name"],
-                                "vid": vid,
-                                "pid": pid,
-                                "interface": known["interface"],
-                                "channel": known["channel"],
-                                "friendly_name": friendly,
-                            })
-        except Exception:
-            pass
-    else:
-        # Linux: 检查 /sys/bus/usb/devices
+    if platform.system() != "Windows":
+        # Linux: match VID:PID against lsusb output.
         try:
             import subprocess
             result = subprocess.run(["lsusb"], capture_output=True, text=True, timeout=10)
@@ -96,6 +66,37 @@ def scan_usb_devices():
                             })
         except Exception:
             pass
+        return found
+
+    # Windows fallback: query PnP devices through PowerShell.
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["powershell", "-Command",
+             "Get-PnpDevice -Class USB -Status OK | Select-Object -Property InstanceId,FriendlyName | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            devices = json.loads(result.stdout)
+            if isinstance(devices, dict):
+                devices = [devices]
+            for dev in devices:
+                instance_id = dev.get("InstanceId", "").upper()
+                friendly = dev.get("FriendlyName", "")
+                for known in known_devices:
+                    vid = known["vid"].upper()
+                    pid = known["pid"].upper()
+                    if f"VID_{vid}" in instance_id and f"PID_{pid}" in instance_id:
+                        found.append({
+                            "name": known["name"],
+                            "vid": vid,
+                            "pid": pid,
+                            "interface": known["interface"],
+                            "channel": known["channel"],
+                            "friendly_name": friendly,
+                        })
+    except Exception:
+        pass
 
     return found
 
@@ -113,9 +114,14 @@ def scan_socketcan():
         )
         if result.returncode == 0 and result.stdout.strip():
             for iface in json.loads(result.stdout):
+                # Some iproute2 builds emit one empty object per non-matching
+                # link instead of an empty array; skip those.
+                ifname = iface.get("ifname", "")
+                if not ifname:
+                    continue
                 interfaces.append({
                     "interface": "socketcan",
-                    "channel": iface.get("ifname", ""),
+                    "channel": ifname,
                     "status": iface.get("operstate", "unknown").lower(),
                 })
     except Exception:
