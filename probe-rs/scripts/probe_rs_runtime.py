@@ -1,4 +1,4 @@
-"""probe-rs skill 私有运行时工具。"""
+"""Private runtime utilities for the probe-rs skill."""
 
 from __future__ import annotations
 
@@ -254,7 +254,7 @@ def resolve_param(
     if normalize_as_path and not is_missing(value):
         value = normalize_path_with_base(str(value), workspace_root(workspace))
     if required and is_missing(value):
-        raise ValueError(f"缺少必要参数: {name}")
+        raise ValueError(f"Missing required parameter: {name}")
     return value, source
 
 

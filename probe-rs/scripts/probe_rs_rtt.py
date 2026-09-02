@@ -1,4 +1,4 @@
-"""probe-rs RTT 日志读取。"""
+"""probe-rs RTT log reader."""
 
 from __future__ import annotations
 
@@ -40,15 +40,15 @@ from probe_rs_runtime import (  # noqa: E402
 
 
 ERROR_PATTERNS = [
-    (r"no probes were found", "no_probe_found", "未检测到调试探针，请检查 USB 连接和驱动"),
-    (r"multiple probes were found", "multiple_probes", "检测到多个探针，请通过 --probe 显式指定"),
-    (r"chip.*not found", "chip_not_found", "未找到目标芯片描述，请确认 --chip 配置"),
-    (r"failed to open probe", "probe_open_failed", "打开调试探针失败，请检查探针占用、驱动和 USB 连接"),
-    (r"failed to open the debug probe", "probe_open_failed", "打开调试探针失败，请检查探针占用、驱动和 USB 连接"),
-    (r"error while probing target", "probe_open_failed", "打开调试探针失败，请检查探针占用、驱动和 USB 连接"),
-    (r"unexpected answer to command", "probe_protocol_error", "探针返回异常响应，请检查固件、驱动和链路稳定性"),
-    (r"permission denied", "permission_denied", "访问调试探针被拒绝，请检查驱动和权限"),
-    (r"timed out", "timeout", "操作超时，请检查连接和速度配置"),
+    (r"no probes were found", "no_probe_found", "No debug probe detected. Check USB connection and driver."),
+    (r"multiple probes were found", "multiple_probes", "Multiple probes detected. Specify explicitly via --probe."),
+    (r"chip.*not found", "chip_not_found", "Target chip description not found. Check --chip configuration."),
+    (r"failed to open probe", "probe_open_failed", "Failed to open debug probe. Check probe occupancy, driver, and USB connection."),
+    (r"failed to open the debug probe", "probe_open_failed", "Failed to open debug probe. Check probe occupancy, driver, and USB connection."),
+    (r"error while probing target", "probe_open_failed", "Failed to open debug probe. Check probe occupancy, driver, and USB connection."),
+    (r"unexpected answer to command", "probe_protocol_error", "Unexpected response from probe. Check firmware, driver, and link stability."),
+    (r"permission denied", "permission_denied", "Permission denied accessing debug probe. Check driver and permissions."),
+    (r"timed out", "timeout", "Operation timed out. Check connection and speed configuration."),
 ]
 
 
@@ -189,9 +189,9 @@ def resolve_probe_params(args, config: dict, project_config: dict, state_lookup:
 
 def build_attach_command(params: dict) -> list[str]:
     if is_missing(params["chip"]):
-        raise ValueError("缺少必要参数: chip")
+        raise ValueError("Missing required parameter: chip")
     if is_missing(params["elf_file"]):
-        raise ValueError("缺少必要参数: elf，必须提供 --elf，或保证 last_debug/last_build 中存在有效 ELF 文件")
+        raise ValueError("Missing required parameter: elf, must provide --elf or ensure valid ELF file in last_debug/last_build")
     cmd = [
         params["exe"],
         "attach",
@@ -219,17 +219,17 @@ def detect_runtime_error(text: str) -> tuple[str, str] | None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="probe-rs RTT 日志读取")
-    parser.add_argument("--exe", default=None, help="probe-rs 可执行文件")
-    parser.add_argument("--chip", default=None, help="芯片型号")
-    parser.add_argument("--elf", default=None, help="ELF 文件路径")
-    parser.add_argument("--protocol", default=None, choices=["swd", "jtag"], help="调试协议")
-    parser.add_argument("--probe", default=None, help="探针选择器")
-    parser.add_argument("--speed", default=None, help="调试速率 kHz")
-    parser.add_argument("--connect-under-reset", action="store_true", help="连接时保持 reset")
-    parser.add_argument("--duration", type=float, default=0, help="读取时长(秒)，0=持续运行")
-    parser.add_argument("--config", default=None, help="skill config.json 路径")
-    parser.add_argument("--workspace", default=None, help="workspace 根目录，默认当前目录")
+    parser = argparse.ArgumentParser(description="probe-rs RTT log reader")
+    parser.add_argument("--exe", default=None, help="probe-rs executable path")
+    parser.add_argument("--chip", default=None, help="Target chip model")
+    parser.add_argument("--elf", default=None, help="ELF file path")
+    parser.add_argument("--protocol", default=None, choices=["swd", "jtag"], help="Debug protocol")
+    parser.add_argument("--probe", default=None, help="Probe selector")
+    parser.add_argument("--speed", default=None, help="Debug speed in kHz")
+    parser.add_argument("--connect-under-reset", action="store_true", help="Connect under reset")
+    parser.add_argument("--duration", type=float, default=0, help="Duration to read in seconds, 0=run continuously")
+    parser.add_argument("--config", default=None, help="Path to skill config.json")
+    parser.add_argument("--workspace", default=None, help="Workspace root directory, defaults to current directory")
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args()
 
@@ -257,7 +257,7 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {exc}", file=sys.stderr)
+            print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
     proc: subprocess.Popen | None = None
@@ -275,15 +275,15 @@ def main() -> None:
         result = make_result(
             status="error",
             action="rtt",
-            summary=f"probe-rs 不存在或不在 PATH 中: {params['exe']}",
+            summary=f"probe-rs not found or not in PATH: {params['exe']}",
             context=parameter_context(provider="probe-rs", workspace=str(workspace), parameter_sources=parameter_sources, config_path=config_path),
-            error={"code": "exe_not_found", "message": f"probe-rs 不存在或不在 PATH 中: {params['exe']}"},
+            error={"code": "exe_not_found", "message": f"probe-rs not found or not in PATH: {params['exe']}"},
             timing=make_timing(started_at, (time.time() - started_ts) * 1000),
         )
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {result['error']['message']}", file=sys.stderr)
+            print(f"Error: {result['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
     stdout_queue = start_stream_reader(proc.stdout)
@@ -331,7 +331,7 @@ def main() -> None:
             if args.as_json:
                 output_json(result)
             else:
-                print(f"错误: {message}", file=sys.stderr)
+                print(f"Error: {message}", file=sys.stderr)
             sys.exit(1)
         if proc.poll() is not None:
             break
@@ -339,11 +339,11 @@ def main() -> None:
 
     if proc.poll() is not None:
         combined_startup = "\n".join(buffered_stderr + buffered_stdout)
-        message = combined_startup or "probe-rs RTT 启动失败"
+        message = combined_startup or "probe-rs RTT failed to start"
         result = make_result(
             status="error",
             action="rtt",
-            summary="probe-rs RTT 启动失败",
+            summary="probe-rs RTT failed to start",
             details={
                 "chip": params["chip"],
                 "command": cmd,
@@ -357,7 +357,7 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {message}", file=sys.stderr)
+            print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
 
     state_info = update_state_entry(
@@ -384,7 +384,7 @@ def main() -> None:
         header = make_result(
             status="ok",
             action="rtt",
-            summary="probe-rs RTT 已启动",
+            summary="probe-rs RTT started",
             details={"command": cmd, "chip": params["chip"], "probe": params["probe"] or ""},
             context=parameter_context(provider="probe-rs", workspace=str(workspace), parameter_sources=parameter_sources, config_path=config_path),
             state=state_info,
@@ -392,7 +392,7 @@ def main() -> None:
         )
         output_json(header)
     else:
-        print(f"[probe-rs rtt] 已启动，chip={params['chip']}")
+        print(f"[probe-rs rtt] started, chip={params['chip']}")
 
     deadline = time.time() + args.duration if args.duration > 0 else None
     stdout_done = False
@@ -443,7 +443,7 @@ def main() -> None:
         footer = make_result(
             status="ok",
             action="rtt",
-            summary="probe-rs RTT 已结束",
+            summary="probe-rs RTT ended",
             details={"chip": params["chip"], "lines": lines},
             context=parameter_context(provider="probe-rs", workspace=str(workspace), parameter_sources=parameter_sources, config_path=config_path),
             metrics={"lines": lines},
@@ -451,7 +451,7 @@ def main() -> None:
         )
         output_json(footer)
     else:
-        print(f"[probe-rs rtt] 已结束，lines={lines}")
+        print(f"[probe-rs rtt] ended, lines={lines}")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""probe-rs GDB Server 启动与 one-shot 调试。"""
+"""probe-rs GDB Server startup and one-shot debugging."""
 
 from __future__ import annotations
 
@@ -108,9 +108,9 @@ def wait_gdb_server_ready(proc: subprocess.Popen, port: int, timeout: int = 15) 
             stderr = proc.stderr.read() if proc.stderr else ""
             return False, "\n".join(part for part in (stdout, stderr) if part).strip()
         if time.time() - started >= startup_grace:
-            return True, f"probe-rs gdb 已启动，假定 localhost:{port} 可用"
+            return True, f"probe-rs gdb started, assuming localhost:{port} is available"
         time.sleep(0.2)
-    return False, f"GDB Server 在 {timeout}s 内未监听 localhost:{port}"
+    return False, f"GDB Server did not listen on localhost:{port} within {timeout}s"
 
 
 def cleanup(procs: list[subprocess.Popen]) -> None:
@@ -239,16 +239,16 @@ def resolve_probe_params(args, config: dict, project_config: dict, state_lookup:
 
 def _summary(command: str, parsed: dict) -> str:
     if command == "continue" and parsed.get("timed_out"):
-        return "continue 已执行，目标在超时窗口内未停下"
+        return "continue executed, target did not halt within timeout window"
     if command == "backtrace" and parsed.get("frames"):
-        return f"backtrace 完成，frames={len(parsed['frames'])}"
+        return f"backtrace complete, frames={len(parsed['frames'])}"
     if command == "locals" and parsed.get("variables"):
-        return f"locals 完成，variables={len(parsed['variables'])}"
+        return f"locals complete, variables={len(parsed['variables'])}"
     if command == "threads" and parsed.get("threads"):
-        return f"threads 完成，threads={len(parsed['threads'])}"
+        return f"threads complete, threads={len(parsed['threads'])}"
     if command == "print" and parsed.get("value"):
-        return f"print 完成，value={parsed['value']}"
-    return f"gdb {command} 完成"
+        return f"print complete, value={parsed['value']}"
+    return f"gdb {command} complete"
 
 
 def _metrics(parsed: dict) -> dict:
@@ -275,28 +275,28 @@ def stepping_fallback_commands(action: str) -> list[str] | None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="probe-rs GDB Server 调试")
+    parser = argparse.ArgumentParser(description="probe-rs GDB Server debugging")
     sub = parser.add_subparsers(dest="command")
     for name in ALL_COMMANDS:
         sub_parser = sub.add_parser(name, help=f"GDB {name}")
-        sub_parser.add_argument("--exe", default=None, help="probe-rs 可执行文件")
-        sub_parser.add_argument("--gdb-exe", default=None, help="arm-none-eabi-gdb 路径")
-        sub_parser.add_argument("--chip", default=None, help="芯片型号")
-        sub_parser.add_argument("--elf", default=None, help="ELF 文件路径")
-        sub_parser.add_argument("--protocol", default=None, choices=["swd", "jtag"], help="调试协议")
-        sub_parser.add_argument("--probe", default=None, help="探针选择器")
-        sub_parser.add_argument("--speed", default=None, help="调试速率 kHz")
-        sub_parser.add_argument("--connect-under-reset", action="store_true", help="连接时保持 reset")
-        sub_parser.add_argument("--gdb-port", type=int, default=0, help="GDB 端口，0=自动")
-        sub_parser.add_argument("--config", default=None, help="skill config.json 路径")
-        sub_parser.add_argument("--workspace", default=None, help="workspace 根目录，默认当前目录")
+        sub_parser.add_argument("--exe", default=None, help="probe-rs executable path")
+        sub_parser.add_argument("--gdb-exe", default=None, help="arm-none-eabi-gdb path")
+        sub_parser.add_argument("--chip", default=None, help="Target chip model")
+        sub_parser.add_argument("--elf", default=None, help="ELF file path")
+        sub_parser.add_argument("--protocol", default=None, choices=["swd", "jtag"], help="Debug protocol")
+        sub_parser.add_argument("--probe", default=None, help="Probe selector")
+        sub_parser.add_argument("--speed", default=None, help="Debug speed in kHz")
+        sub_parser.add_argument("--connect-under-reset", action="store_true", help="Connect under reset")
+        sub_parser.add_argument("--gdb-port", type=int, default=0, help="GDB port, 0=auto")
+        sub_parser.add_argument("--config", default=None, help="Path to skill config.json")
+        sub_parser.add_argument("--workspace", default=None, help="Workspace root directory, defaults to current directory")
         sub_parser.add_argument("--json", action="store_true", dest="as_json")
         if name == "run":
-            sub_parser.add_argument("--commands", nargs="+", required=True, help="GDB 命令序列")
+            sub_parser.add_argument("--commands", nargs="+", required=True, help="GDB command sequence")
         elif name in {"break", "frame", "print", "watch"}:
-            sub_parser.add_argument("--expr", required=True, help="表达式或参数")
+            sub_parser.add_argument("--expr", required=True, help="Expression or argument")
         elif name in {"until", "disassemble"}:
-            sub_parser.add_argument("--expr", default=None, help="表达式或参数")
+            sub_parser.add_argument("--expr", default=None, help="Expression or argument")
 
     args = parser.parse_args()
     if not args.command:
@@ -317,19 +317,19 @@ def main() -> None:
         result = make_result(
             status="error",
             action=args.command,
-            summary="缺少必要参数: chip",
+            summary="Missing required parameter: chip",
             context=parameter_context(provider="probe-rs", workspace=str(workspace), parameter_sources=parameter_sources, config_path=config_path),
-            error={"code": "missing_chip", "message": "必须提供 --chip，或通过 .embeddedskills/config.json 的 probe-rs 段配置"},
+            error={"code": "missing_chip", "message": "--chip must be provided or configured in the probe-rs section of .embeddedskills/config.json"},
             timing=make_timing(started_at, (time.time() - started_ts) * 1000),
         )
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {result['error']['message']}", file=sys.stderr)
+            print(f"Error: {result['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
     if is_missing(params["gdb_exe"]) or not os.path.isfile(str(params["gdb_exe"])):
-        message = f"arm-none-eabi-gdb 不存在: {params['gdb_exe']}"
+        message = f"arm-none-eabi-gdb not found: {params['gdb_exe']}"
         result = make_result(
             status="error",
             action=args.command,
@@ -341,7 +341,7 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {message}", file=sys.stderr)
+            print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
 
     try:
@@ -358,7 +358,7 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {exc}", file=sys.stderr)
+            print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
     procs: list[subprocess.Popen] = []
@@ -379,16 +379,16 @@ def main() -> None:
             result = make_result(
                 status="error",
                 action=args.command,
-                summary="GDB Server 启动失败",
+                summary="GDB Server failed to start",
                 details={"chip": params["chip"], "server_output": server_output},
                 context=parameter_context(provider="probe-rs", workspace=str(workspace), parameter_sources=parameter_sources, config_path=config_path),
-                error={"code": "gdbserver_failed", "message": server_output or "GDB Server 启动失败"},
+                error={"code": "gdbserver_failed", "message": server_output or "GDB Server failed to start"},
                 timing=make_timing(started_at, (time.time() - started_ts) * 1000),
             )
             if args.as_json:
                 output_json(result)
             else:
-                print(f"[probe-rs gdb-{args.command}] 失败 — {result['error']['message']}", file=sys.stderr)
+                print(f"[probe-rs gdb-{args.command}] failed — {result['error']['message']}", file=sys.stderr)
             sys.exit(1)
 
         gdb_result = run_gdb_commands(str(params["gdb_exe"]), params["elf_file"] or "", f"localhost:{gdb_port}", gdb_commands)
@@ -407,17 +407,17 @@ def main() -> None:
             result = make_result(
                 status="error",
                 action=args.command,
-                summary="GDB 执行失败",
+                summary="GDB execution failed",
                 details={"chip": params["chip"], "gdb_port": gdb_port, "server_output": server_output},
                 context=parameter_context(provider="probe-rs", workspace=str(workspace), parameter_sources=parameter_sources, config_path=config_path),
                 artifacts=build_artifacts(debug_file=params["elf_file"]),
-                error={"code": "gdb_error", "message": gdb_result.get("error", gdb_result.get("stderr", "GDB 执行失败"))},
+                error={"code": "gdb_error", "message": gdb_result.get("error", gdb_result.get("stderr", "GDB execution failed"))},
                 timing=make_timing(started_at, elapsed_ms),
             )
             if args.as_json:
                 output_json(result)
             else:
-                print(f"[probe-rs gdb-{args.command}] 失败 — {result['error']['message']}", file=sys.stderr)
+                print(f"[probe-rs gdb-{args.command}] failed — {result['error']['message']}", file=sys.stderr)
             sys.exit(1)
         else:
             parsed = parse_gdb_output(gdb_result["stdout"], args.command)
@@ -464,7 +464,7 @@ def main() -> None:
             artifacts=artifacts,
             metrics=_metrics(parsed),
             state=state_info,
-            next_actions=["可继续基于 last_debug 复用 chip/debug_file"],
+            next_actions=["Can continue to reuse chip/debug_file based on last_debug"],
             timing=make_timing(started_at, elapsed_ms),
         )
 
@@ -476,7 +476,7 @@ def main() -> None:
             if output:
                 print(output)
         else:
-            print(f"[probe-rs gdb-{args.command}] 失败 — {result['error']['message']}", file=sys.stderr)
+            print(f"[probe-rs gdb-{args.command}] failed — {result['error']['message']}", file=sys.stderr)
             sys.exit(1)
     finally:
         cleanup(procs)

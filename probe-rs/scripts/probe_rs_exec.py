@@ -1,4 +1,4 @@
-"""probe-rs 基础操作与包装命令。"""
+"""probe-rs basic operations and wrapper commands."""
 
 from __future__ import annotations
 
@@ -40,17 +40,17 @@ from probe_rs_runtime import (
 ALL_ACTIONS = ["list", "info", "flash", "erase", "reset", "read-mem", "write-mem", "attach", "run"]
 
 ERROR_PATTERNS = [
-    (r"no probes were found", "no_probe_found", "未检测到调试探针，请检查 USB 连接和驱动"),
-    (r"multiple probes were found", "multiple_probes", "检测到多个探针，请通过 --probe 显式指定"),
-    (r"chip.*not found", "chip_not_found", "未找到目标芯片描述，请确认 --chip 配置"),
-    (r"failed to open probe", "probe_open_failed", "打开调试探针失败，请检查探针占用、驱动和 USB 连接"),
-    (r"failed to open the debug probe", "probe_open_failed", "打开调试探针失败，请检查探针占用、驱动和 USB 连接"),
-    (r"error while probing target", "probe_open_failed", "打开调试探针失败，请检查探针占用、驱动和 USB 连接"),
-    (r"unexpected answer to command", "probe_protocol_error", "探针返回异常响应，请检查固件、驱动和链路稳定性"),
-    (r"failed to attach", "attach_failed", "连接目标失败，请检查供电、连线和芯片型号"),
-    (r"permission denied", "permission_denied", "访问调试探针被拒绝，请检查驱动和权限"),
-    (r"address.*out of bounds", "address_out_of_range", "访问地址超出范围，请确认地址和数据宽度"),
-    (r"timed out", "timeout", "操作超时，请检查连接和速度配置"),
+    (r"no probes were found", "no_probe_found", "No debug probe detected. Check USB connection and driver."),
+    (r"multiple probes were found", "multiple_probes", "Multiple probes detected. Specify explicitly via --probe."),
+    (r"chip.*not found", "chip_not_found", "Target chip description not found. Check --chip configuration."),
+    (r"failed to open probe", "probe_open_failed", "Failed to open debug probe. Check probe occupancy, driver, and USB connection."),
+    (r"failed to open the debug probe", "probe_open_failed", "Failed to open debug probe. Check probe occupancy, driver, and USB connection."),
+    (r"error while probing target", "probe_open_failed", "Failed to open debug probe. Check probe occupancy, driver, and USB connection."),
+    (r"unexpected answer to command", "probe_protocol_error", "Unexpected response from probe. Check firmware, driver, and link stability."),
+    (r"failed to attach", "attach_failed", "Failed to attach to target. Check power supply, wiring, and chip model."),
+    (r"permission denied", "permission_denied", "Permission denied accessing debug probe. Check driver and permissions."),
+    (r"address.*out of bounds", "address_out_of_range", "Access address out of bounds. Check address and data width."),
+    (r"timed out", "timeout", "Operation timed out. Check connection and speed configuration."),
 ]
 
 
@@ -96,24 +96,24 @@ def parse_output(text: str, action: str) -> dict:
 
 def _summary(action: str, parsed: dict, fallback: str) -> str:
     if action == "list" and parsed.get("probes"):
-        return f"已发现 {len(parsed['probes'])} 个调试探针"
+        return f"Found {len(parsed['probes'])} debug probe(s)"
     if action == "flash":
-        return "烧录成功"
+        return "Flash successful"
     if action == "erase":
-        return "擦除成功"
+        return "Erase successful"
     if action == "reset":
-        return "目标已复位"
+        return "Target reset"
     if action == "read-mem" and parsed.get("words"):
-        return f"已读取 {len(parsed['words'])} 个内存字"
+        return f"Read {len(parsed['words'])} memory word(s)"
     if action == "write-mem":
-        return "内存写入成功"
+        return "Memory write successful"
     return fallback
 
 
 def normalize_write_values(value_text: str) -> list[str]:
     values = [item.strip() for item in re.split(r"[\s,]+", value_text) if item.strip()]
     if not values:
-        raise ValueError("write-mem 必须提供 --value")
+        raise ValueError("write-mem requires --value")
 
     normalized: list[str] = []
     for value in values:
@@ -242,7 +242,7 @@ def build_probe_args(params: dict, *, require_chip: bool = True) -> list[str]:
     args = ["--non-interactive"]
     if require_chip:
         if is_missing(params["chip"]):
-            raise ValueError("缺少必要参数: chip")
+            raise ValueError("Missing required parameter: chip")
         args.extend(["--chip", params["chip"]])
     if params.get("protocol"):
         args.extend(["--protocol", str(params["protocol"]).lower()])
@@ -271,9 +271,9 @@ def build_command(action: str, params: dict, args) -> list[str]:
         return [exe, "write", *build_probe_args(params), args.width, args.address, *normalize_write_values(args.value)]
     if action == "flash":
         if is_missing(params["file"]):
-            raise ValueError("flash 必须提供 --file 固件文件路径")
+            raise ValueError("flash requires firmware file path via --file")
         if not os.path.isfile(params["file"]):
-            raise ValueError(f"固件文件不存在: {params['file']}")
+            raise ValueError(f"Firmware file not found: {params['file']}")
         fmt = infer_binary_format(params["file"])
         cmd = [exe, "download", *build_probe_args(params), "--binary-format", fmt]
         if args.chip_erase:
@@ -282,7 +282,7 @@ def build_command(action: str, params: dict, args) -> list[str]:
             cmd.append("--verify")
         if fmt == "bin":
             if not args.address:
-                raise ValueError(".bin 文件必须提供 --address 烧录地址")
+                raise ValueError(".bin file requires flash address via --address")
             cmd.extend(["--base-address", args.address])
         cmd.append(params["file"])
         return cmd
@@ -291,7 +291,7 @@ def build_command(action: str, params: dict, args) -> list[str]:
         if params.get("file"):
             cmd.append(params["file"])
         return cmd
-    raise ValueError(f"未知动作: {action}")
+    raise ValueError(f"Unknown action: {action}")
 
 
 def run_command(action: str, cmd: list[str], duration: float = 0) -> dict:
@@ -324,9 +324,9 @@ def run_command(action: str, cmd: list[str], duration: float = 0) -> dict:
             stdout, stderr = proc.stdout, proc.stderr
         returncode = proc.returncode
     except FileNotFoundError:
-        return {"status": "error", "action": action, "error": {"code": "exe_not_found", "message": f"probe-rs 不存在或不在 PATH 中: {cmd[0]}"}}
+        return {"status": "error", "action": action, "error": {"code": "exe_not_found", "message": f"probe-rs not found or not in PATH: {cmd[0]}"}}
     except subprocess.TimeoutExpired:
-        return {"status": "error", "action": action, "error": {"code": "timeout", "message": "probe-rs 执行超时(120s)"}}
+        return {"status": "error", "action": action, "error": {"code": "timeout", "message": "probe-rs execution timed out (120s)"}}
     except Exception as exc:
         return {"status": "error", "action": action, "error": {"code": "exec_error", "message": str(exc)}}
 
@@ -347,9 +347,9 @@ def run_command(action: str, cmd: list[str], duration: float = 0) -> dict:
     return {
         "status": status,
         "action": action,
-        "summary": _summary(action, parsed, f"{action} 完成"),
+        "summary": _summary(action, parsed, f"{action} complete"),
         "details": {"elapsed_ms": elapsed_ms, "returncode": returncode, **{k: v for k, v in parsed.items() if k != "raw"}, "output": combined},
-        "error": None if status == "ok" else {"code": "nonzero_exit", "message": combined or f"{action} 失败"},
+        "error": None if status == "ok" else {"code": "nonzero_exit", "message": combined or f"{action} failed"},
     }
 
 
@@ -373,24 +373,24 @@ def state_payload(action: str, params: dict) -> tuple[str, dict] | None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="probe-rs 基础操作包装")
+    parser = argparse.ArgumentParser(description="probe-rs basic operations wrapper")
     parser.add_argument("action", choices=ALL_ACTIONS)
-    parser.add_argument("--exe", default=None, help="probe-rs 可执行文件路径或命令名")
-    parser.add_argument("--chip", default=None, help="芯片型号")
-    parser.add_argument("--protocol", default=None, choices=["swd", "jtag"], help="调试协议")
-    parser.add_argument("--probe", default=None, help="探针选择器，格式 VID:PID[:Serial]")
-    parser.add_argument("--speed", default=None, help="调试速率 kHz")
-    parser.add_argument("--connect-under-reset", action="store_true", help="连接时保持 reset")
-    parser.add_argument("--file", default=None, help="固件或 ELF 文件路径")
-    parser.add_argument("--address", default="", help="地址（flash .bin / read-mem / write-mem 用）")
-    parser.add_argument("--length", default="64", help="读取长度")
-    parser.add_argument("--value", default="", help="写入值")
-    parser.add_argument("--width", default="b32", choices=["b8", "b16", "b32", "b64"], help="读写位宽")
-    parser.add_argument("--duration", type=float, default=0, help="attach/run 时运行秒数，0 表示等待命令自然退出")
-    parser.add_argument("--verify", action="store_true", help="烧录后校验")
-    parser.add_argument("--chip-erase", action="store_true", help="烧录前整片擦除")
-    parser.add_argument("--config", default=None, help="skill config.json 路径")
-    parser.add_argument("--workspace", default=None, help="workspace 根目录，默认当前目录")
+    parser.add_argument("--exe", default=None, help="probe-rs executable path or command name")
+    parser.add_argument("--chip", default=None, help="Target chip model")
+    parser.add_argument("--protocol", default=None, choices=["swd", "jtag"], help="Debug protocol")
+    parser.add_argument("--probe", default=None, help="Probe selector in VID:PID[:Serial] format")
+    parser.add_argument("--speed", default=None, help="Debug speed in kHz")
+    parser.add_argument("--connect-under-reset", action="store_true", help="Connect under reset")
+    parser.add_argument("--file", default=None, help="Firmware or ELF file path")
+    parser.add_argument("--address", default="", help="Address (for flash .bin / read-mem / write-mem)")
+    parser.add_argument("--length", default="64", help="Read length")
+    parser.add_argument("--value", default="", help="Value to write")
+    parser.add_argument("--width", default="b32", choices=["b8", "b16", "b32", "b64"], help="Read/write bit width")
+    parser.add_argument("--duration", type=float, default=0, help="Duration to run in seconds for attach/run, 0 to wait for command exit")
+    parser.add_argument("--verify", action="store_true", help="Verify after flashing")
+    parser.add_argument("--chip-erase", action="store_true", help="Full chip erase before flashing")
+    parser.add_argument("--config", default=None, help="Path to skill config.json")
+    parser.add_argument("--workspace", default=None, help="Workspace root directory, defaults to current directory")
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args()
 
@@ -409,15 +409,15 @@ def main() -> None:
         result = make_result(
             status="error",
             action=args.action,
-            summary="缺少必要参数: chip",
+            summary="Missing required parameter: chip",
             context=parameter_context(provider="probe-rs", workspace=str(workspace), parameter_sources=parameter_sources, config_path=config_path),
-            error={"code": "missing_chip", "message": "必须提供 --chip，或通过 .embeddedskills/config.json 的 probe-rs 段配置"},
+            error={"code": "missing_chip", "message": "--chip must be provided or configured in the probe-rs section of .embeddedskills/config.json"},
             timing=make_timing(started_at, (time.time() - started_ts) * 1000),
         )
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {result['error']['message']}", file=sys.stderr)
+            print(f"Error: {result['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
     try:
@@ -434,7 +434,7 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {exc}", file=sys.stderr)
+            print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
     raw_result = run_command(args.action, cmd, args.duration)
@@ -455,7 +455,7 @@ def main() -> None:
         result = make_result(
             status="ok",
             action=args.action,
-            summary=raw_result.get("summary", f"{args.action} 完成"),
+            summary=raw_result.get("summary", f"{args.action} complete"),
             details={
                 "chip": params["chip"] or "",
                 "probe": params["probe"] or "",
@@ -467,14 +467,14 @@ def main() -> None:
             context=parameter_context(provider="probe-rs", workspace=str(workspace), parameter_sources=parameter_sources, config_path=config_path),
             artifacts=build_artifacts(flash_file=params["file"] if args.action == "flash" else "", debug_file=params["file"] if args.action in {"attach", "run"} else ""),
             state=state_info,
-            next_actions=["可继续基于 probe-rs 执行 gdb 或 rtt 观测"] if args.action in {"flash", "info"} else None,
+            next_actions=["Can continue with gdb or rtt observation based on probe-rs"] if args.action in {"flash", "info"} else None,
             timing=make_timing(started_at, elapsed_ms),
         )
     else:
         result = make_result(
             status="error",
             action=args.action,
-            summary=(raw_result.get("error") or {}).get("message", f"{args.action} 失败"),
+            summary=(raw_result.get("error") or {}).get("message", f"{args.action} failed"),
             details={
                 "chip": params["chip"] or "",
                 "probe": params["probe"] or "",
@@ -496,7 +496,7 @@ def main() -> None:
         if output:
             print(output)
     else:
-        print(f"[probe-rs {args.action}] 失败 — {result['error']['message']}", file=sys.stderr)
+        print(f"[probe-rs {args.action}] failed — {result['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
 
