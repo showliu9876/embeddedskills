@@ -1,4 +1,4 @@
-"""workflow skill 私有运行时工具。"""
+"""workflow skill private runtime utilities."""
 
 from __future__ import annotations
 
@@ -27,9 +27,9 @@ def default_config_path(script_file: str) -> Path:
 
 
 def load_local_config(script_file: str | None = None) -> dict:
-    """加载 workflow/config.json（环境级配置）- workflow 基本为空或只有扩展位
+    """Load workflow/config.json (environment-level config) - mostly empty or extension slots.
 
-    路径：当前脚本所在 skill 目录下的 config.json
+    Path: config.json under the current script skill directory.
     """
     if script_file is None:
         import inspect
@@ -43,7 +43,7 @@ def load_local_config(script_file: str | None = None) -> dict:
 
 
 def save_local_config(data: dict, script_file: str | None = None) -> Path | None:
-    """保存环境级配置到 workflow/config.json"""
+    """Save environment-level configuration to workflow/config.json."""
     if script_file is None:
         import inspect
         frame = inspect.currentframe()
@@ -59,10 +59,10 @@ def save_local_config(data: dict, script_file: str | None = None) -> Path | None
 
 
 def load_project_config(workspace: str | None = None) -> dict:
-    """从 workspace/.embeddedskills/config.json 读取 workflow 的工程级配置
+    """Read workflow project-level configuration from workspace/.embeddedskills/config.json.
 
-    参数: workspace - 工作区路径，None 时使用 cwd
-    返回: config["workflow"] 部分
+    Args: workspace - workspace path, uses cwd if None
+    Returns: config["workflow"] section
     """
     ws = workspace_root(workspace)
     config_file = ws / STATE_DIR_NAME / PROJECT_CONFIG_FILE_NAME
@@ -71,10 +71,10 @@ def load_project_config(workspace: str | None = None) -> dict:
 
 
 def save_project_config(workspace: str | None = None, values: dict | None = None) -> Path | None:
-    """写回 workflow 工程级配置到 .embeddedskills/config.json
+    """Write back workflow project-level configuration to .embeddedskills/config.json.
 
-    - 只更新 workflow 部分，不覆盖其他 skill 的配置
-    - 目录不存在时自动创建 .embeddedskills/
+    - Updates only the workflow section without overwriting other skills' config
+    - Automatically creates .embeddedskills/ if directory does not exist
     """
     if values is None:
         values = {}
@@ -87,7 +87,7 @@ def save_project_config(workspace: str | None = None, values: dict | None = None
 
 
 def load_full_project_config(workspace: str | None = None) -> dict:
-    """读取完整的 .embeddedskills/config.json（workflow 需要读取其他 skill 的配置）"""
+    """Read complete .embeddedskills/config.json (workflow needs other skills' configurations)."""
     ws = workspace_root(workspace)
     config_file = ws / STATE_DIR_NAME / PROJECT_CONFIG_FILE_NAME
     return load_json_file(config_file)
@@ -109,7 +109,7 @@ def load_json_file_strict(path: str | Path) -> dict:
     file_path = Path(path)
     data = json.loads(file_path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
-        raise ValueError(f"配置文件必须是 JSON 对象: {file_path}")
+        raise ValueError(f"Configuration file must be a JSON object: {file_path}")
     return data
 
 
@@ -129,7 +129,7 @@ def load_effective_project_config(workspace: str | None = None, config_path: str
     if resolved_path is None:
         return full_config, None
     if not resolved_path.exists():
-        raise FileNotFoundError(f"配置文件不存在: {resolved_path}")
+        raise FileNotFoundError(f"Configuration file does not exist: {resolved_path}")
 
     compat_config = load_json_file_strict(resolved_path)
     if compat_config and "workflow" not in compat_config and LEGACY_WORKFLOW_KEYS.intersection(compat_config):

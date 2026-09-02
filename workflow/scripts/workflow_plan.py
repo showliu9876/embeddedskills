@@ -1,4 +1,4 @@
-"""workflow 规划：发现工程、候选后端和状态。"""
+"""Workflow planning: discover projects, candidate backends, and state."""
 
 from __future__ import annotations
 
@@ -38,8 +38,8 @@ def discover_projects(root: Path) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="workflow plan")
-    parser.add_argument("--workspace", default=None, help="workspace 根目录，默认当前目录")
-    parser.add_argument("--config", default=None, help="workflow config.json 路径（已废弃，仅保留兼容性）")
+    parser.add_argument("--workspace", default=None, help="Workspace root directory, defaults to current directory")
+    parser.add_argument("--config", default=None, help="workflow config.json path (deprecated, kept for compatibility)")
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args()
 
@@ -60,7 +60,7 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {exc}", file=sys.stderr)
+            print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
     workflow_config = full_config.get("workflow", {})
@@ -75,7 +75,7 @@ def main() -> None:
     if discovery["eide_projects"]:
         build_candidates.append("eide")
 
-    # 从配置中读取 preferred 设置
+    # Read preferred settings from configuration
     preferred = {
         "build": workflow_config.get("preferred_build", "auto"),
         "flash": workflow_config.get("preferred_flash", "auto"),
@@ -86,7 +86,7 @@ def main() -> None:
     result = make_result(
         status="ok",
         action="plan",
-        summary="workflow 规划已生成",
+        summary="Workflow plan generated",
         details={
             "workspace": str(workspace),
             "build_candidates": build_candidates,
@@ -107,7 +107,7 @@ def main() -> None:
             "last_debug": get_state_entry(state, "last_debug"),
             "last_observe": get_state_entry(state, "last_observe"),
         },
-        next_actions=["若存在多个候选工程，workflow run 会返回候选列表而不会自动猜测"],
+        next_actions=["If multiple candidate projects exist, workflow run returns candidates without guessing"],
         timing=make_timing(started_at, (__import__("time").time() - started_ts) * 1000),
     )
     result["details"].update(discovery)
