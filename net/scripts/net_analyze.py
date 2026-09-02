@@ -13,7 +13,13 @@ import tempfile
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-from net_runtime import decode_text, load_local_config, resolve_tool_path
+from net_runtime import (
+    DEFAULT_CAPINFOS,
+    DEFAULT_TSHARK,
+    decode_text,
+    load_local_config,
+    resolve_tool_path,
+)
 
 
 def load_config():
@@ -232,14 +238,8 @@ def main():
         sys.exit(1)
 
     config = load_config()
-    tshark_exe = resolve_tool_path(
-        config.get("tshark_exe"),
-        "tshark.exe" if sys.platform == "win32" else "tshark",
-    )
-    capinfos_exe = resolve_tool_path(
-        config.get("capinfos_exe"),
-        "capinfos.exe" if sys.platform == "win32" else "capinfos",
-    )
+    tshark_exe = resolve_tool_path(config.get("tshark_exe"), DEFAULT_TSHARK)
+    capinfos_exe = resolve_tool_path(config.get("capinfos_exe"), DEFAULT_CAPINFOS)
 
     filtered_input = ""
     analysis_input = args.pcap_file

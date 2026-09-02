@@ -13,10 +13,10 @@ Claude Code skill，用于嵌入式网络通信调试：接口发现、抓包、
 
 ## 环境要求
 
-- [Wireshark](https://www.wireshark.org/) — 提供 tshark、dumpcap、capinfos（安装时勾选命令行工具并加入 PATH）
-- [Npcap](https://npcap.com/) — Windows 抓包驱动（Wireshark 安装时可一并安装）
+- [Wireshark](https://www.wireshark.org/) CLI 工具 — 提供 tshark、dumpcap、capinfos（`sudo apt install tshark wireshark-common`）
+- libpcap — 由 Wireshark/tshark 依赖自动安装
 - Python 3.x（仅标准库，无额外依赖）
-- 抓包可能需要管理员权限
+- 非 root 用户抓包需加入 `wireshark` 组（`sudo dpkg-reconfigure wireshark-common` 后 `sudo usermod -aG wireshark $USER`，重新登录生效），或给 `dumpcap` 设置 `cap_net_raw,cap_net_admin` capability
 
 ## 配置
 

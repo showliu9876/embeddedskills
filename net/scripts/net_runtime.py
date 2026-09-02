@@ -18,10 +18,18 @@ STATE_DIR_NAME = ".embeddedskills"
 STATE_FILE_NAME = "state.json"
 PROJECT_CONFIG_FILE = "config.json"
 
-WINDOWS_TOOL_DIRS = [
+# Wireshark CLI install prefixes, Linux first, Windows kept as fallback.
+TOOL_INSTALL_DIRS = [
+    Path("/usr/bin"),
+    Path("/usr/local/bin"),
+    Path("/usr/sbin"),
+    Path("/snap/bin"),
     Path(r"C:\Program Files\Wireshark"),
     Path(r"C:\Program Files (x86)\Wireshark"),
 ]
+
+DEFAULT_TSHARK = "tshark"
+DEFAULT_CAPINFOS = "capinfos"
 
 
 def now_iso() -> str:
@@ -76,10 +84,11 @@ def resolve_tool_path(configured: str | None, default_name: str) -> str:
         if resolved:
             return resolved
 
-    for base_dir in WINDOWS_TOOL_DIRS:
-        candidate_path = base_dir / default_name
-        if candidate_path.exists():
-            return str(candidate_path)
+    for base_dir in TOOL_INSTALL_DIRS:
+        for name in (default_name, f"{default_name}.exe"):
+            candidate_path = base_dir / name
+            if candidate_path.exists():
+                return str(candidate_path)
 
     return configured.strip() if configured and configured.strip() else default_name
 
@@ -250,7 +259,7 @@ def make_timing(start_time: float) -> dict:
 
 def check_tshark(exe: str = "tshark") -> bool:
     """检查 tshark 是否可用"""
-    resolved_exe = resolve_tool_path(exe, "tshark.exe" if sys.platform == "win32" else "tshark")
+    resolved_exe = resolve_tool_path(exe, DEFAULT_TSHARK)
     try:
         result = subprocess.run([resolved_exe, "--version"], capture_output=True, text=False, timeout=5)
         return result.returncode == 0
@@ -260,7 +269,7 @@ def check_tshark(exe: str = "tshark") -> bool:
 
 def parse_tshark_interfaces(tshark_exe: str = "tshark") -> list[dict] | None:
     """解析 tshark -D 获取抓包接口列表"""
-    resolved_exe = resolve_tool_path(tshark_exe, "tshark.exe" if sys.platform == "win32" else "tshark")
+    resolved_exe = resolve_tool_path(tshark_exe, DEFAULT_TSHARK)
     try:
         result = subprocess.run(
             [resolved_exe, "-D"], capture_output=True, text=False, timeout=10
@@ -483,10 +492,8 @@ def get_net_config(
     sources["log_dir"] = src or "default"
 
     # 获取工具路径（环境级配置）
-    default_tshark = "tshark.exe" if sys.platform == "win32" else "tshark"
-    default_capinfos = "capinfos.exe" if sys.platform == "win32" else "capinfos"
-    tshark_exe = resolve_tool_path(local_cfg.get("tshark_exe"), default_tshark)
-    capinfos_exe = resolve_tool_path(local_cfg.get("capinfos_exe"), default_capinfos)
+    tshark_exe = resolve_tool_path(local_cfg.get("tshark_exe"), DEFAULT_TSHARK)
+    capinfos_exe = resolve_tool_path(local_cfg.get("capinfos_exe"), DEFAULT_CAPINFOS)
 
     config = {
         "interface": interface,
