@@ -1,4 +1,4 @@
-"""CAN 总线监控：持续读取报文，支持过滤、DBC 解码和 CAN-FD"""
+"""CAN bus monitoring: continuously read messages, supports filtering, DBC decoding, and CAN-FD."""
 
 import argparse
 import json
@@ -16,7 +16,7 @@ from can_runtime import (
 
 
 def parse_id_list(s):
-    """解析逗号分隔的 CAN ID 列表，支持 0x 前缀"""
+    """Parse comma-separated CAN ID list, supporting 0x prefix."""
     if not s:
         return None
     ids = set()
@@ -38,27 +38,27 @@ def format_data(data):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CAN 总线实时监控")
+    parser = argparse.ArgumentParser(description="CAN bus real-time monitor")
     add_can_connection_args(parser, include_data_bitrate=True)
-    parser.add_argument("--fd", action="store_true", help="启用 CAN-FD 模式")
-    parser.add_argument("--filter-id", help="只显示指定 ID（逗号分隔）")
-    parser.add_argument("--exclude-id", help="排除指定 ID（逗号分隔）")
-    parser.add_argument("--dbc", help="DBC 数据库文件路径，用于解码")
-    parser.add_argument("--timeout", type=float, help="监控时长（秒）")
-    parser.add_argument("--json", action="store_true", help="JSON Lines 输出")
+    parser.add_argument("--fd", action="store_true", help="Enable CAN-FD mode")
+    parser.add_argument("--filter-id", help="Only show specified IDs (comma-separated)")
+    parser.add_argument("--exclude-id", help="Exclude specified IDs (comma-separated)")
+    parser.add_argument("--dbc", help="DBC database file path for decoding")
+    parser.add_argument("--timeout", type=float, help="Monitoring duration (seconds)")
+    parser.add_argument("--json", action="store_true", help="Output in JSON Lines format")
     args = parser.parse_args()
 
     try:
         import can
     except ImportError:
-        err = {"status": "error", "action": "monitor", "error": {"code": "import_error", "message": "python-can 未安装，请执行 pip install python-can"}}
+        err = {"status": "error", "action": "monitor", "error": {"code": "import_error", "message": "python-can is not installed, please run: pip install python-can"}}
         if args.json:
             output_json_line(err)
         else:
-            print(f"错误: {err['error']['message']}", file=sys.stderr)
+            print(f"Error: {err['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
-    # 获取配置
+    # Get configuration
     config, sources = get_can_config(
         cli_interface=args.interface,
         cli_channel=args.channel,
@@ -68,13 +68,13 @@ def main():
 
     if config is None:
         if sources.get("need_selection"):
-            err = {"status": "error", "action": "monitor", "error": {"code": "multiple_candidates", "message": f"{sources['error']}，请用 --interface 和 --channel 指定"}}
+            err = {"status": "error", "action": "monitor", "error": {"code": "multiple_candidates", "message": f"{sources['error']}; please specify with --interface and --channel"}}
         else:
-            err = {"status": "error", "action": "monitor", "error": {"code": "config_error", "message": sources.get("error", "配置错误")}}
+            err = {"status": "error", "action": "monitor", "error": {"code": "config_error", "message": sources.get("error", "Configuration error")}}
         if args.json:
             output_json_line(err)
         else:
-            print(f"错误: {err['error']['message']}", file=sys.stderr)
+            print(f"Error: {err['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
     interface = config["interface"]
@@ -82,7 +82,7 @@ def main():
     bitrate = config["bitrate"]
     data_bitrate = config["data_bitrate"]
 
-    # 保存确认的配置
+    # Save confirmed configuration
     save_project_config(values={
         "interface": interface,
         "channel": channel,
@@ -93,22 +93,22 @@ def main():
     filter_ids = parse_id_list(args.filter_id)
     exclude_ids = parse_id_list(args.exclude_id)
 
-    # 加载 DBC
+    # Load DBC
     db = None
     if args.dbc:
         try:
             import cantools
             db = cantools.database.load_file(args.dbc)
         except ImportError:
-            print("警告: cantools 未安装，DBC 解码不可用", file=sys.stderr)
+            print("Warning: cantools is not installed, DBC decoding unavailable", file=sys.stderr)
         except Exception as e:
-            print(f"警告: 加载 DBC 失败: {e}", file=sys.stderr)
+            print(f"Warning: Failed to load DBC: {e}", file=sys.stderr)
 
-    # 连接总线
+    # Connect to bus
     try:
         bus = open_can_bus(config)
         if args.fd and data_bitrate:
-            # 重新打开以启用 FD 模式
+            # Reopen to enable FD mode
             bus = can.Bus(
                 interface=interface,
                 channel=channel,
@@ -121,7 +121,7 @@ def main():
         if args.json:
             output_json_line(err)
         else:
-            print(f"错误: 无法打开 CAN 接口 — {e}", file=sys.stderr)
+            print(f"Error: Unable to open CAN interface — {e}", file=sys.stderr)
         sys.exit(1)
 
     start = time.time()
@@ -150,7 +150,7 @@ def main():
 
             count += 1
 
-            # 尝试 DBC 解码
+            # Attempt DBC decoding
             decoded = None
             if db:
                 try:
@@ -183,9 +183,9 @@ def main():
     finally:
         bus.shutdown()
         elapsed = time.time() - start
-        print(f"\n监控结束: {count} 帧, {elapsed:.1f} 秒", file=sys.stderr)
+        print(f"\nMonitoring ended: {count} frames, {elapsed:.1f} seconds", file=sys.stderr)
 
-    # 更新状态
+    # Update state
     update_state_entry("last_observe", {
         "type": "can_monitor",
         "interface": interface,

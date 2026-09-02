@@ -1,4 +1,4 @@
-"""can skill 私有运行时工具。"""
+"""can skill private runtime utilities."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def is_missing(value: Any) -> bool:
 
 
 def load_json_file(path: str | Path) -> dict:
-    """加载 JSON 文件，不存在返回空字典"""
+    """Load JSON file; return empty dictionary if not found."""
     file_path = Path(path)
     if not file_path.exists():
         return {}
@@ -38,19 +38,19 @@ def load_json_file(path: str | Path) -> dict:
 
 
 def save_json_file(path: str | Path, data: dict) -> None:
-    """保存 JSON 文件，自动创建目录"""
+    """Save JSON file, automatically creating directories."""
     file_path = Path(path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def load_local_config() -> dict:
-    """加载 skill/config.json（环境级配置）"""
+    """Load skill/config.json (environment-level configuration)."""
     return load_json_file(SKILL_DIR / "config.json")
 
 
 def save_local_config(data: dict) -> None:
-    """保存环境级配置到 skill/config.json"""
+    """Save environment-level configuration to skill/config.json."""
     save_json_file(SKILL_DIR / "config.json", data)
 
 
@@ -61,22 +61,22 @@ def workspace_root(workspace: str | None = None) -> Path:
 
 
 def add_can_connection_args(parser, *, include_data_bitrate: bool = False) -> None:
-    """为 CLI 补充通用 CAN 连接参数。"""
-    parser.add_argument("--interface", help="CAN 后端接口名，如 pcan、vector、socketcan、slcan")
-    parser.add_argument("--channel", help="接口通道，如 PCAN_USBBUS1、0、can0")
-    parser.add_argument("--bitrate", type=int, help="CAN 仲裁域波特率，默认 500000")
+    """Add common CAN connection arguments to CLI."""
+    parser.add_argument("--interface", help="CAN backend interface name, e.g. pcan, vector, socketcan, slcan")
+    parser.add_argument("--channel", help="Interface channel, e.g. PCAN_USBBUS1, 0, can0")
+    parser.add_argument("--bitrate", type=int, help="CAN arbitration phase bitrate, default: 500000")
     if include_data_bitrate:
-        parser.add_argument("--data-bitrate", dest="data_bitrate", type=int, help="CAN-FD 数据域波特率，默认 2000000")
+        parser.add_argument("--data-bitrate", dest="data_bitrate", type=int, help="CAN-FD data phase bitrate, default: 2000000")
 
 
 def load_project_config(workspace: str | None = None) -> dict:
-    """从 workspace/.embeddedskills/config.json 读取本 skill 的工程级配置"""
+    """Read project-level configuration for this skill from workspace/.embeddedskills/config.json."""
     proj_config = load_json_file(workspace_root(workspace) / STATE_DIR_NAME / PROJECT_CONFIG_FILE)
     return proj_config.get(SKILL_NAME, {})
 
 
 def save_project_config(workspace: str | None = None, values: dict | None = None) -> None:
-    """写回工程级配置，只更新本 skill 的部分"""
+    """Write back project-level configuration, updating only this skill's section."""
     if values is None:
         return
     proj_path = workspace_root(workspace) / STATE_DIR_NAME / PROJECT_CONFIG_FILE
@@ -86,19 +86,19 @@ def save_project_config(workspace: str | None = None, values: dict | None = None
 
 
 def load_workspace_state(workspace: str | None = None) -> dict:
-    """从 workspace/.embeddedskills/state.json 读取状态"""
+    """Read state from workspace/.embeddedskills/state.json."""
     return load_json_file(workspace_root(workspace) / STATE_DIR_NAME / STATE_FILE_NAME)
 
 
 def save_workspace_state(state: dict, workspace: str | None = None) -> Path:
-    """保存状态"""
+    """Save state."""
     file_path = workspace_root(workspace) / STATE_DIR_NAME / STATE_FILE_NAME
     save_json_file(file_path, state)
     return file_path
 
 
 def update_state_entry(category: str, record: dict, workspace: str | None = None) -> dict:
-    """更新状态条目"""
+    """Update state entry."""
     state = load_workspace_state(workspace)
     state[category] = {**record, "timestamp": record.get("timestamp") or now_iso()}
     file_path = save_workspace_state(state, workspace)
@@ -111,7 +111,7 @@ def update_state_entry(category: str, record: dict, workspace: str | None = None
 
 
 def normalize_path(value: str | None, base: str | Path | None = None) -> str:
-    """路径规范化"""
+    """Path normalization."""
     if is_missing(value):
         return ""
     path = Path(str(value)).expanduser()
@@ -139,7 +139,7 @@ def resolve_param(
     state_keys: list[str] | None = None,
     default: Any = None,
 ) -> tuple[Any, str]:
-    """统一参数解析，优先级: CLI > 环境级 > 工程级 > state > default"""
+    """Unified parameter resolution, priority: CLI > local/env > project > state > default."""
     if not is_missing(cli_value):
         return cli_value, "cli"
 
@@ -165,7 +165,7 @@ def resolve_param(
 
 
 def parameter_context(name: str, value: Any, source: str) -> dict:
-    """记录参数来源"""
+    """Record parameter source."""
     return {"name": name, "value": value, "source": source}
 
 
@@ -176,7 +176,7 @@ def make_result(
     details: dict | None = None,
     error: dict | None = None,
 ) -> dict:
-    """统一结果格式"""
+    """Unified result format."""
     result = {
         "status": "ok" if success else "error",
         "action": action,
@@ -190,7 +190,7 @@ def make_result(
 
 
 def make_timing(start_time: float) -> dict:
-    """执行时间记录"""
+    """Execution timing record."""
     elapsed = datetime.now().timestamp() - start_time
     return {
         "started_at": datetime.fromtimestamp(start_time).astimezone().isoformat(timespec="seconds"),
@@ -200,7 +200,7 @@ def make_timing(start_time: float) -> dict:
 
 
 def load_known_devices() -> tuple[list, list]:
-    """加载已知的 CAN 设备和接口"""
+    """Load known CAN devices and interfaces."""
     try:
         common_path = SKILL_DIR / "references" / "common_interfaces.json"
         data = json.loads(common_path.read_text(encoding="utf-8"))
@@ -210,7 +210,7 @@ def load_known_devices() -> tuple[list, list]:
 
 
 def check_interface_available(interface_name: str) -> bool:
-    """尝试导入对应后端，判断是否可用"""
+    """Attempt to import the corresponding backend to determine if it is available."""
     try:
         from can.interfaces import VALID_INTERFACES
         return interface_name in VALID_INTERFACES
@@ -219,7 +219,7 @@ def check_interface_available(interface_name: str) -> bool:
 
 
 def scan_usb_can_devices() -> list[dict]:
-    """扫描 USB-CAN 设备"""
+    """Scan USB-CAN devices."""
     known_devices, _ = load_known_devices()
     if not known_devices:
         return []
@@ -282,7 +282,7 @@ def scan_usb_can_devices() -> list[dict]:
 
 
 def scan_socketcan() -> list[dict]:
-    """Linux: 扫描 SocketCAN 接口"""
+    """Linux: Scan SocketCAN interfaces."""
     if platform.system() != "Linux":
         return []
     interfaces = []
@@ -309,15 +309,15 @@ def scan_socketcan() -> list[dict]:
 
 
 def scan_can_interfaces() -> tuple[list[dict], str | None]:
-    """扫描所有可用 CAN 接口"""
+    """Scan all available CAN interfaces."""
     try:
         import can  # noqa: F401
     except ImportError:
-        return [], "python-can 未安装，请执行 pip install python-can"
+        return [], "python-can is not installed, please run: pip install python-can"
 
     results = []
 
-    # 1. 扫描 USB-CAN 设备
+    # 1. Scan USB-CAN devices
     for dev in scan_usb_can_devices():
         results.append({
             "interface": dev["interface"],
@@ -328,7 +328,7 @@ def scan_can_interfaces() -> tuple[list[dict], str | None]:
             "status": "detected",
         })
 
-    # 2. 扫描 SocketCAN
+    # 2. Scan SocketCAN
     for iface in scan_socketcan():
         results.append({
             "interface": iface["interface"],
@@ -339,7 +339,7 @@ def scan_can_interfaces() -> tuple[list[dict], str | None]:
             "status": iface["status"],
         })
 
-    # 3. 检查已知后端可用性
+    # 3. Check known backend availability
     _, known_interfaces = load_known_devices()
     backends_found = {r["interface"] for r in results}
     for ki in known_interfaces:
@@ -366,8 +366,8 @@ def get_can_config(
     workspace: str | None = None,
 ) -> tuple[dict, dict]:
     """
-    获取 CAN 配置，按优先级解析参数。
-    返回 (config_dict, sources_dict)
+    Get CAN configuration, resolving parameters by priority.
+    Returns (config_dict, sources_dict)
     """
     local_cfg = load_local_config()
     proj_cfg = load_project_config(workspace)
@@ -375,7 +375,7 @@ def get_can_config(
 
     sources = {}
 
-    # 解析各个参数
+    # Resolve parameters
     interface, src = resolve_param(
         "interface", cli_interface,
         project_config=proj_cfg, project_keys=["interface"],
@@ -406,13 +406,13 @@ def get_can_config(
     )
     sources["data_bitrate"] = src or "default"
 
-    # 如果没有指定 interface/channel，尝试扫描
+    # If interface/channel not specified, attempt scanning
     if is_missing(interface) or is_missing(channel):
         interfaces, err = scan_can_interfaces()
         if err:
             return None, {"error": err}
         if len(interfaces) == 1:
-            # 唯一候选，自动写入配置
+            # Sole candidate, automatically write to configuration
             iface = interfaces[0]
             interface = iface["interface"]
             channel = iface["channel"]
@@ -424,12 +424,12 @@ def get_can_config(
             })
         elif len(interfaces) > 1:
             return None, {
-                "error": "找到多个 CAN 接口，请指定一个",
+                "error": "Multiple CAN interfaces found, please specify one",
                 "candidates": interfaces,
                 "need_selection": True,
             }
         else:
-            return None, {"error": "未找到可用 CAN 接口"}
+            return None, {"error": "No available CAN interfaces found"}
 
     log_dir, src = resolve_param(
         "log_dir", None,
@@ -438,7 +438,7 @@ def get_can_config(
     )
     sources["log_dir"] = src or "default"
 
-    # 获取 slcan 相关环境级配置
+    # Get slcan-related local environment configuration
     slcan_serial_port = local_cfg.get("slcan_serial_port", "")
     slcan_serial_baudrate = local_cfg.get("slcan_serial_baudrate", 115200)
 
@@ -456,7 +456,7 @@ def get_can_config(
 
 
 def open_can_bus(config: dict):
-    """根据配置打开 CAN 总线"""
+    """Open CAN bus according to configuration."""
     import can
 
     bus_kwargs = {
@@ -470,6 +470,6 @@ def open_can_bus(config: dict):
 
 
 def output_json(data: dict, *, indent: int = 2) -> None:
-    """输出 JSON 到 stdout"""
+    """Output JSON to stdout."""
     sys.stdout.reconfigure(encoding="utf-8")
     print(json.dumps(data, ensure_ascii=False, indent=indent), flush=True)

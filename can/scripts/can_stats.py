@@ -1,4 +1,4 @@
-"""CAN 总线统计：负载率、ID 分布、帧率和数据变化"""
+"""CAN bus statistics: bus load, ID distribution, frame rate, and data changes."""
 
 import argparse
 import json
@@ -38,25 +38,25 @@ def output_json(result):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CAN 总线统计")
+    parser = argparse.ArgumentParser(description="CAN bus statistics")
     add_can_connection_args(parser)
-    parser.add_argument("--duration", type=float, default=5.0, help="统计时长（秒，默认 5）")
-    parser.add_argument("--top", type=int, default=20, help="显示前 N 个 ID")
-    parser.add_argument("--watch", help="重点观察的 ID 列表（逗号分隔）")
-    parser.add_argument("--json", action="store_true", help="JSON 输出")
+    parser.add_argument("--duration", type=float, default=5.0, help="Statistics duration (seconds, default: 5)")
+    parser.add_argument("--top", type=int, default=20, help="Display top N IDs")
+    parser.add_argument("--watch", help="List of IDs to watch specifically (comma-separated)")
+    parser.add_argument("--json", action="store_true", help="Output in JSON format")
     args = parser.parse_args()
 
     try:
         import can
     except ImportError:
-        err = {"status": "error", "action": "stats", "error": {"code": "import_error", "message": "python-can 未安装，请执行 pip install python-can"}}
+        err = {"status": "error", "action": "stats", "error": {"code": "import_error", "message": "python-can is not installed, please run: pip install python-can"}}
         if args.json:
             output_json(err)
         else:
-            print(f"错误: {err['error']['message']}", file=sys.stderr)
+            print(f"Error: {err['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
-    # 获取配置
+    # Get configuration
     config, sources = get_can_config(
         cli_interface=args.interface,
         cli_channel=args.channel,
@@ -65,20 +65,20 @@ def main():
 
     if config is None:
         if sources.get("need_selection"):
-            err = {"status": "error", "action": "stats", "error": {"code": "multiple_candidates", "message": f"{sources['error']}，请用 --interface 和 --channel 指定"}}
+            err = {"status": "error", "action": "stats", "error": {"code": "multiple_candidates", "message": f"{sources['error']}; please specify with --interface and --channel"}}
         else:
-            err = {"status": "error", "action": "stats", "error": {"code": "config_error", "message": sources.get("error", "配置错误")}}
+            err = {"status": "error", "action": "stats", "error": {"code": "config_error", "message": sources.get("error", "Configuration error")}}
         if args.json:
             output_json(err)
         else:
-            print(f"错误: {err['error']['message']}", file=sys.stderr)
+            print(f"Error: {err['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
     interface = config["interface"]
     channel = config["channel"]
     bitrate = config["bitrate"]
 
-    # 保存确认的配置
+    # Save confirmed configuration
     save_project_config(values={
         "interface": interface,
         "channel": channel,
@@ -94,10 +94,10 @@ def main():
         if args.json:
             output_json(err)
         else:
-            print(f"错误: 无法打开 CAN 接口 — {e}", file=sys.stderr)
+            print(f"Error: Unable to open CAN interface — {e}", file=sys.stderr)
         sys.exit(1)
 
-    # 统计数据
+    # Statistics data
     id_count = defaultdict(int)
     id_bytes = defaultdict(int)
     id_last_data = {}
@@ -107,7 +107,7 @@ def main():
     start = time.time()
     total_frames = 0
 
-    print(f"统计中（{args.duration} 秒）...", file=sys.stderr)
+    print(f"Collecting statistics ({args.duration} seconds)...", file=sys.stderr)
 
     try:
         while True:
@@ -125,14 +125,14 @@ def main():
             id_count[arb_id] += 1
             id_bytes[arb_id] += msg.dlc
 
-            # 估算总线比特数: SOF(1) + ID(11/29) + 控制(6) + 数据(dlc*8) + CRC(15) + ACK(2) + EOF(7) + IFS(3)
+            # Estimate bus bits: SOF(1) + ID(11/29) + Control(6) + Data(dlc*8) + CRC(15) + ACK(2) + EOF(7) + IFS(3)
             if msg.is_extended_id:
                 frame_bits = 1 + 29 + 6 + msg.dlc * 8 + 15 + 2 + 7 + 3
             else:
                 frame_bits = 1 + 11 + 6 + msg.dlc * 8 + 15 + 2 + 7 + 3
             total_bits += frame_bits
 
-            # 数据变化检测
+            # Data change detection
             data_hex = msg.data.hex()
             if arb_id in id_last_data and id_last_data[arb_id] != data_hex:
                 id_data_changes[arb_id] += 1
@@ -144,10 +144,10 @@ def main():
         bus.shutdown()
 
     actual_duration = time.time() - start
-    bus_bitrate = bitrate if bitrate else 500000  # 默认估算用 500k
+    bus_bitrate = bitrate if bitrate else 500000  # Default to 500k for estimation
     bus_load = (total_bits / (actual_duration * bus_bitrate)) * 100 if actual_duration > 0 else 0
 
-    # 排序 ID 列表
+    # Sort ID list
     sorted_ids = sorted(id_count.keys(), key=lambda x: id_count[x], reverse=True)
 
     ids_detail = []
@@ -162,7 +162,7 @@ def main():
         }
         ids_detail.append(entry)
 
-    # watch ID 额外输出
+    # Additional output for watched IDs
     watch_detail = []
     if watch_ids:
         for arb_id in sorted(watch_ids):
@@ -186,13 +186,13 @@ def main():
     result = {
         "status": "ok",
         "action": "stats",
-        "summary": f"{actual_duration:.1f} 秒内收到 {total_frames} 帧，{len(id_count)} 个不同 ID，总线负载约 {bus_load:.1f}%（估算值）",
+        "summary": f"Received {total_frames} frames across {len(id_count)} distinct IDs in {actual_duration:.1f}s, estimated bus load ~{bus_load:.1f}%",
         "details": {
             "duration_sec": round(actual_duration, 1),
             "total_frames": total_frames,
             "unique_ids": len(id_count),
             "bus_load_percent": round(bus_load, 1),
-            "bus_load_note": "估算值，基于标准帧位数计算",
+            "bus_load_note": "Estimated value based on standard frame bit count",
             "ids": ids_detail,
         },
     }
@@ -202,21 +202,21 @@ def main():
     if args.json:
         output_json(result)
     else:
-        print(f"\n统计结果 ({actual_duration:.1f} 秒):")
-        print(f"  总帧数: {total_frames}")
-        print(f"  不同 ID: {len(id_count)}")
-        print(f"  总线负载: ~{bus_load:.1f}%（估算）")
-        print(f"\n  {'ID':<12} {'帧数':>8} {'帧率(Hz)':>10} {'数据变化':>8} {'最新数据'}")
+        print(f"\nStatistics results ({actual_duration:.1f} seconds):")
+        print(f"  Total frames: {total_frames}")
+        print(f"  Distinct IDs: {len(id_count)}")
+        print(f"  Bus load: ~{bus_load:.1f}% (estimated)")
+        print(f"\n  {'ID':<12} {'Frames':>8} {'Rate(Hz)':>10} {'Changes':>8} {'Latest Data'}")
         print(f"  {'─'*12} {'─'*8} {'─'*10} {'─'*8} {'─'*24}")
         for entry in ids_detail:
             print(f"  {entry['id']:<12} {entry['count']:>8} {entry['rate_hz']:>10.1f} {entry['data_changes']:>8} {entry['last_data']}")
 
         if watch_detail:
-            print(f"\n  观察 ID:")
+            print(f"\n  Watched IDs:")
             for entry in watch_detail:
-                print(f"  {entry['id']}: {entry['count']} 帧, {entry['rate_hz']:.1f} Hz, {entry['data_changes']} 次变化, 最新: {entry['last_data']}")
+                print(f"  {entry['id']}: {entry['count']} frames, {entry['rate_hz']:.1f} Hz, {entry['data_changes']} changes, latest: {entry['last_data']}")
 
-    # 更新状态
+    # Update state
     update_state_entry("last_observe", {
         "type": "can_stats",
         "interface": interface,

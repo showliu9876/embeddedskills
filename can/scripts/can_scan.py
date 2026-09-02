@@ -1,4 +1,4 @@
-"""CAN 接口扫描：枚举系统可用 CAN 后端与 USB-CAN 设备"""
+"""CAN interface scan: enumerate system-available CAN backends and USB-CAN devices."""
 
 import argparse
 import json
@@ -26,10 +26,10 @@ def load_known_devices():
 
 
 def check_interface_available(interface_name):
-    """尝试导入对应后端，判断是否可用"""
+    """Attempt to import the corresponding backend to determine if it is available."""
     try:
         import can
-        # 利用 python-can 的接口枚举检测后端是否注册
+        # Use python-can interface enumeration to check if backend is registered
         from can.interfaces import VALID_INTERFACES
         return interface_name in VALID_INTERFACES
     except Exception:
@@ -37,7 +37,7 @@ def check_interface_available(interface_name):
 
 
 def scan_usb_devices():
-    """扫描 USB 设备，匹配已知 USB-CAN 适配器"""
+    """Scan USB devices and match known USB-CAN adapters."""
     known_devices, _ = load_known_devices()
     if not known_devices:
         return []
@@ -102,7 +102,7 @@ def scan_usb_devices():
 
 
 def scan_socketcan():
-    """Linux: 扫描 SocketCAN 接口"""
+    """Linux: Scan SocketCAN interfaces."""
     if platform.system() != "Linux":
         return []
     interfaces = []
@@ -130,15 +130,15 @@ def scan_socketcan():
 
 
 def scan_interfaces():
-    """综合扫描所有可用 CAN 接口"""
+    """Comprehensive scan of all available CAN interfaces."""
     try:
         import can  # noqa: F401
     except ImportError:
-        return None, "python-can 未安装，请执行 pip install python-can"
+        return None, "python-can is not installed, please run: pip install python-can"
 
     results = []
 
-    # 1. 扫描 USB-CAN 设备
+    # 1. Scan USB-CAN devices
     usb_devices = scan_usb_devices()
     for dev in usb_devices:
         results.append({
@@ -150,7 +150,7 @@ def scan_interfaces():
             "status": "detected",
         })
 
-    # 2. 扫描 SocketCAN（Linux）
+    # 2. Scan SocketCAN (Linux)
     for iface in scan_socketcan():
         results.append({
             "interface": iface["interface"],
@@ -161,7 +161,7 @@ def scan_interfaces():
             "status": iface["status"],
         })
 
-    # 3. 检查已知后端可用性
+    # 3. Check known backend availability
     _, known_interfaces = load_known_devices()
     backends_found = {r["interface"] for r in results}
     for ki in known_interfaces:
@@ -187,8 +187,8 @@ def output_json(result):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="扫描可用 CAN 接口")
-    parser.add_argument("--json", action="store_true", help="JSON 输出")
+    parser = argparse.ArgumentParser(description="Scan available CAN interfaces")
+    parser.add_argument("--json", action="store_true", help="Output in JSON format")
     args = parser.parse_args()
 
     interfaces, err = scan_interfaces()
@@ -198,13 +198,13 @@ def main():
         if args.json:
             output_json(result)
         else:
-            print(f"错误: {err}", file=sys.stderr)
+            print(f"Error: {err}", file=sys.stderr)
         sys.exit(1)
 
     result = {
         "status": "ok",
         "action": "scan",
-        "summary": f"发现 {len(interfaces)} 个 CAN 接口",
+        "summary": f"Found {len(interfaces)} CAN interface(s)",
         "details": {"interfaces": interfaces},
     }
 
@@ -212,9 +212,9 @@ def main():
         output_json(result)
     else:
         if not interfaces:
-            print("未发现可用 CAN 接口")
+            print("No available CAN interfaces found")
         else:
-            print(f"发现 {len(interfaces)} 个 CAN 接口:\n")
+            print(f"Found {len(interfaces)} CAN interface(s):\n")
             for iface in interfaces:
                 dev = f" [{iface['device']}]" if iface["device"] else ""
                 vid_pid = f" (VID:{iface['vid']} PID:{iface['pid']})" if iface["vid"] else ""

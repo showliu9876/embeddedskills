@@ -1,4 +1,4 @@
-"""CAN 数据库解码：用 DBC/ARXML/KCD 等文件解码单帧或日志"""
+"""CAN database decoding: decode single frames or log files using DBC/ARXML/KCD files."""
 
 import argparse
 import json
@@ -18,12 +18,12 @@ def output_json(result):
 
 
 def load_database(db_path, db_format="auto"):
-    """加载数据库文件"""
+    """Load database file."""
     import cantools
 
     path = Path(db_path)
     if not path.exists():
-        return None, f"数据库文件不存在: {db_path}"
+        return None, f"Database file does not exist: {db_path}"
 
     try:
         if db_format == "auto":
@@ -42,18 +42,18 @@ def load_database(db_path, db_format="auto"):
             fmt = format_map.get(db_format)
             if fmt:
                 db.add_dbc_string(content) if fmt == "dbc" else db.add_autosar_string(content) if fmt == "autosar" else None
-                # 对于非 dbc/autosar，回退到 load_file
+                # Fall back to load_file for non-dbc/autosar formats
                 if fmt not in ("dbc", "autosar"):
                     db = cantools.database.load_file(str(path))
             else:
-                return None, f"不支持的数据库格式: {db_format}"
+                return None, f"Unsupported database format: {db_format}"
         return db, None
     except Exception as e:
-        return None, f"加载数据库失败: {e}"
+        return None, f"Failed to load database: {e}"
 
 
 def list_messages(db, signal_filter=None):
-    """列出数据库中的报文定义"""
+    """List message definitions in the database."""
     messages = []
     for msg in db.messages:
         signals = []
@@ -83,18 +83,18 @@ def list_messages(db, signal_filter=None):
 
 
 def decode_single(db, arb_id, data):
-    """解码单帧"""
+    """Decode a single frame."""
     try:
         msg = db.get_message_by_frame_id(arb_id)
     except KeyError:
-        return None, f"数据库中未找到 ID 0x{arb_id:03X} 的定义"
+        return None, f"Definition for ID 0x{arb_id:03X} not found in database"
 
     try:
         decoded = msg.decode(data)
         signals = []
         for k, v in decoded.items():
             sig_info = {"name": k, "value": round(v, 6) if isinstance(v, float) else v}
-            # 查找信号的单位
+            # Find signal unit
             for sig in msg.signals:
                 if sig.name == k:
                     sig_info["unit"] = sig.unit or ""
@@ -102,16 +102,16 @@ def decode_single(db, arb_id, data):
             signals.append(sig_info)
         return {"message": msg.name, "id": f"0x{arb_id:03X}", "signals": signals}, None
     except Exception as e:
-        return None, f"解码失败: {e}"
+        return None, f"Decoding failed: {e}"
 
 
 def decode_log_file(db, log_path, signal_filter=None):
-    """解码日志文件"""
+    """Decode log file."""
     import can
 
     path = Path(log_path)
     if not path.exists():
-        return None, f"日志文件不存在: {log_path}"
+        return None, f"Log file does not exist: {log_path}"
 
     results = []
     errors = 0
@@ -137,31 +137,31 @@ def decode_log_file(db, log_path, signal_filter=None):
                 errors += 1
                 continue
     except Exception as e:
-        return None, f"读取日志失败: {e}"
+        return None, f"Failed to read log: {e}"
 
     return {"frames": results, "decoded_count": len(results), "error_count": errors}, None
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CAN 数据库解码")
-    parser.add_argument("db_file", help="数据库文件路径（DBC/ARXML/KCD/SYM/CDD）")
-    parser.add_argument("--db-format", default="auto", help="数据库格式（auto|dbc|arxml|kcd|sym|cdd）")
-    parser.add_argument("--id", help="单帧 CAN ID（支持 0x 前缀）")
-    parser.add_argument("--data", help="单帧数据（Hex）")
-    parser.add_argument("--log", help="日志文件路径")
-    parser.add_argument("--signal", help="按信号名过滤")
-    parser.add_argument("--list", action="store_true", help="列出数据库中所有报文定义")
-    parser.add_argument("--json", action="store_true", help="JSON 输出")
+    parser = argparse.ArgumentParser(description="CAN database decoding")
+    parser.add_argument("db_file", help="Database file path (DBC/ARXML/KCD/SYM/CDD)")
+    parser.add_argument("--db-format", default="auto", help="Database format (auto|dbc|arxml|kcd|sym|cdd)")
+    parser.add_argument("--id", help="Single frame CAN ID (supports 0x prefix)")
+    parser.add_argument("--data", help="Single frame data (Hex)")
+    parser.add_argument("--log", help="Log file path")
+    parser.add_argument("--signal", help="Filter by signal name")
+    parser.add_argument("--list", action="store_true", help="List all message definitions in database")
+    parser.add_argument("--json", action="store_true", help="Output in JSON format")
     args = parser.parse_args()
 
     try:
         import cantools  # noqa: F401
     except ImportError:
-        err = {"status": "error", "action": "decode", "error": {"code": "import_error", "message": "cantools 未安装，请执行 pip install cantools"}}
+        err = {"status": "error", "action": "decode", "error": {"code": "import_error", "message": "cantools is not installed, please run: pip install cantools"}}
         if args.json:
             output_json(err)
         else:
-            print(f"错误: {err['error']['message']}", file=sys.stderr)
+            print(f"Error: {err['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
     db, err = load_database(args.db_file, args.db_format)
@@ -170,16 +170,16 @@ def main():
         if args.json:
             output_json(result)
         else:
-            print(f"错误: {err}", file=sys.stderr)
+            print(f"Error: {err}", file=sys.stderr)
         sys.exit(1)
 
-    # 列出报文定义
+    # List message definitions
     if args.list:
         messages = list_messages(db, args.signal)
         result = {
             "status": "ok",
             "action": "decode",
-            "summary": f"数据库包含 {len(messages)} 个报文",
+            "summary": f"Database contains {len(messages)} message(s)",
             "details": {"messages": messages},
         }
         if args.json:
@@ -192,7 +192,7 @@ def main():
                     print(f"  {s['name']}: bit {s['start_bit']}+{s['length']}{unit} ({s['min']}~{s['max']})")
         return
 
-    # 解码单帧
+    # Decode single frame
     if args.id and args.data:
         arb_id = int(args.id, 0)
         data = parse_hex_data(args.data)
@@ -202,13 +202,13 @@ def main():
             if args.json:
                 output_json(result)
             else:
-                print(f"错误: {err}", file=sys.stderr)
+                print(f"Error: {err}", file=sys.stderr)
             sys.exit(1)
 
         result = {
             "status": "ok",
             "action": "decode",
-            "summary": f"已解码 {decoded['message']} ({decoded['id']})",
+            "summary": f"Decoded {decoded['message']} ({decoded['id']})",
             "details": decoded,
         }
         if args.json:
@@ -220,7 +220,7 @@ def main():
                 print(f"  {s['name']} = {s['value']}{unit}")
         return
 
-    # 解码日志
+    # Decode log
     if args.log:
         log_result, err = decode_log_file(db, args.log, args.signal)
         if err:
@@ -228,13 +228,13 @@ def main():
             if args.json:
                 output_json(result)
             else:
-                print(f"错误: {err}", file=sys.stderr)
+                print(f"Error: {err}", file=sys.stderr)
             sys.exit(1)
 
         result = {
             "status": "ok",
             "action": "decode",
-            "summary": f"已解码 {log_result['decoded_count']} 帧（{log_result['error_count']} 帧无法解码）",
+            "summary": f"Decoded {log_result['decoded_count']} frame(s) ({log_result['error_count']} frame(s) failed to decode)",
             "details": log_result,
         }
         if args.json:
@@ -243,11 +243,11 @@ def main():
             for f in log_result["frames"]:
                 sigs = ", ".join(f"{k}={v}" for k, v in f["decoded"].items())
                 print(f"[{f['timestamp']:.6f}] {f['message']} ({f['id']}): {sigs}")
-            print(f"\n解码 {log_result['decoded_count']} 帧, {log_result['error_count']} 帧无法解码")
+            print(f"\nDecoded {log_result['decoded_count']} frame(s), {log_result['error_count']} frame(s) failed to decode")
         return
 
-    # 未指定操作时提示
-    print("请指定操作：--list 列出定义、--id + --data 解码单帧、--log 解码日志", file=sys.stderr)
+    # Prompt if no operation specified
+    print("Please specify an operation: --list to list definitions, --id + --data to decode single frame, --log to decode log", file=sys.stderr)
     sys.exit(1)
 
 

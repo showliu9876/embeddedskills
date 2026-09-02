@@ -1,4 +1,4 @@
-"""CAN 报文发送：支持标准帧、扩展帧、远程帧、CAN-FD 帧"""
+"""CAN message transmission: supports standard frames, extended frames, remote frames, and CAN-FD frames."""
 
 import argparse
 import json
@@ -16,7 +16,7 @@ from can_runtime import (
 
 
 def parse_hex_data(s):
-    """解析 hex 数据字符串，支持空格或无空格"""
+    """Parse hex data string, supporting with or without spaces."""
     s = s.replace(" ", "").replace(",", "")
     return bytes.fromhex(s)
 
@@ -38,31 +38,31 @@ def format_data(data):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CAN 报文发送")
+    parser = argparse.ArgumentParser(description="CAN message transmission")
     add_can_connection_args(parser, include_data_bitrate=True)
-    parser.add_argument("id", help="CAN ID（支持 0x 前缀）")
-    parser.add_argument("data", help="数据（Hex 字符串，如 'DE AD BE EF'）")
-    parser.add_argument("--extended", action="store_true", help="扩展帧（29位 ID）")
-    parser.add_argument("--remote", action="store_true", help="远程帧")
-    parser.add_argument("--fd", action="store_true", help="CAN-FD 帧")
-    parser.add_argument("--repeat", type=int, default=1, help="重复发送次数")
-    parser.add_argument("--interval", type=float, default=0, help="重复发送间隔（秒）")
-    parser.add_argument("--periodic", type=float, help="周期发送间隔（毫秒），Ctrl+C 停止")
-    parser.add_argument("--listen", action="store_true", help="发送后监听响应")
-    parser.add_argument("--json", action="store_true", help="JSON 输出")
+    parser.add_argument("id", help="CAN ID (supports 0x prefix)")
+    parser.add_argument("data", help="Data (Hex string, e.g. 'DE AD BE EF')")
+    parser.add_argument("--extended", action="store_true", help="Extended frame (29-bit ID)")
+    parser.add_argument("--remote", action="store_true", help="Remote frame")
+    parser.add_argument("--fd", action="store_true", help="CAN-FD frame")
+    parser.add_argument("--repeat", type=int, default=1, help="Number of repeat transmissions")
+    parser.add_argument("--interval", type=float, default=0, help="Interval between repeat transmissions (seconds)")
+    parser.add_argument("--periodic", type=float, help="Periodic transmission interval (milliseconds), press Ctrl+C to stop")
+    parser.add_argument("--listen", action="store_true", help="Listen for response after sending")
+    parser.add_argument("--json", action="store_true", help="Output in JSON format")
     args = parser.parse_args()
 
     try:
         import can
     except ImportError:
-        err = {"status": "error", "action": "send", "error": {"code": "import_error", "message": "python-can 未安装，请执行 pip install python-can"}}
+        err = {"status": "error", "action": "send", "error": {"code": "import_error", "message": "python-can is not installed, please run: pip install python-can"}}
         if args.json:
             output_json(err)
         else:
-            print(f"错误: {err['error']['message']}", file=sys.stderr)
+            print(f"Error: {err['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
-    # 获取配置
+    # Get configuration
     config, sources = get_can_config(
         cli_interface=args.interface,
         cli_channel=args.channel,
@@ -72,13 +72,13 @@ def main():
 
     if config is None:
         if sources.get("need_selection"):
-            err = {"status": "error", "action": "send", "error": {"code": "multiple_candidates", "message": f"{sources['error']}，请用 --interface 和 --channel 指定"}}
+            err = {"status": "error", "action": "send", "error": {"code": "multiple_candidates", "message": f"{sources['error']}; please specify with --interface and --channel"}}
         else:
-            err = {"status": "error", "action": "send", "error": {"code": "config_error", "message": sources.get("error", "配置错误")}}
+            err = {"status": "error", "action": "send", "error": {"code": "config_error", "message": sources.get("error", "Configuration error")}}
         if args.json:
             output_json(err)
         else:
-            print(f"错误: {err['error']['message']}", file=sys.stderr)
+            print(f"Error: {err['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
     interface = config["interface"]
@@ -86,7 +86,7 @@ def main():
     bitrate = config["bitrate"]
     data_bitrate = config["data_bitrate"]
 
-    # 保存确认的配置
+    # Save confirmed configuration
     save_project_config(values={
         "interface": interface,
         "channel": channel,
@@ -100,7 +100,7 @@ def main():
     try:
         bus = open_can_bus(config)
         if args.fd and data_bitrate:
-            # 重新打开以启用 FD 模式
+            # Reopen to enable FD mode
             bus = can.Bus(
                 interface=interface,
                 channel=channel,
@@ -113,7 +113,7 @@ def main():
         if args.json:
             output_json(err)
         else:
-            print(f"错误: 无法打开 CAN 接口 — {e}", file=sys.stderr)
+            print(f"Error: Unable to open CAN interface — {e}", file=sys.stderr)
         sys.exit(1)
 
     msg = can.Message(
@@ -128,15 +128,15 @@ def main():
 
     try:
         if args.periodic is not None:
-            # 周期发送
+            # Periodic transmission
             period_sec = args.periodic / 1000.0
-            print(f"周期发送: 0x{arb_id:03X} 每 {args.periodic:.0f}ms，Ctrl+C 停止", file=sys.stderr)
+            print(f"Periodic transmission: 0x{arb_id:03X} every {args.periodic:.0f}ms, press Ctrl+C to stop", file=sys.stderr)
             while True:
                 bus.send(msg)
                 tx_count += 1
                 time.sleep(period_sec)
         else:
-            # 普通发送（可重复）
+            # Normal transmission (repeatable)
             for i in range(args.repeat):
                 bus.send(msg)
                 tx_count += 1
@@ -145,7 +145,7 @@ def main():
     except KeyboardInterrupt:
         pass
 
-    # 发送结果
+    # Transmission result
     tx_info = {
         "id": f"0x{arb_id:03X}",
         "data": format_data(data),
@@ -156,7 +156,7 @@ def main():
         "count": tx_count,
     }
 
-    # 监听响应
+    # Listen for response
     rx_list = []
     if args.listen:
         listen_timeout = 2.0
@@ -182,21 +182,21 @@ def main():
     result = {
         "status": "ok",
         "action": "send",
-        "summary": f"已发送 {tx_count} 帧到 0x{arb_id:03X}",
+        "summary": f"Sent {tx_count} frame(s) to 0x{arb_id:03X}",
         "details": {"tx": tx_info},
     }
     if args.listen:
         result["details"]["rx"] = rx_list
-        result["summary"] += f"，收到 {len(rx_list)} 帧响应"
+        result["summary"] += f", received {len(rx_list)} response frame(s)"
 
     if args.json:
         output_json(result)
     else:
-        print(f"\n已发送 {tx_count} 帧: 0x{arb_id:03X} [{len(data)}] {format_data(data)}")
+        print(f"\nSent {tx_count} frame(s): 0x{arb_id:03X} [{len(data)}] {format_data(data)}")
         if args.listen:
-            print(f"收到 {len(rx_list)} 帧响应")
+            print(f"Received {len(rx_list)} response frame(s)")
 
-    # 更新状态
+    # Update state
     update_state_entry("last_can_send", {
         "interface": interface,
         "channel": channel,
