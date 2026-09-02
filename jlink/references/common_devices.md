@@ -61,4 +61,4 @@
 
 1. 打开 J-Link Commander，输入 `ExpDevList` 查看完整列表
 2. 在 SEGGER Wiki 搜索: https://wiki.segger.com/Supported_devices
-3. 使用 JLink.exe 的 `-device ?` 参数列出所有支持设备
+3. 使用 `JLinkExe` 的 `-device ?` 参数列出所有支持设备

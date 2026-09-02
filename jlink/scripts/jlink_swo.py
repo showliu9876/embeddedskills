@@ -22,6 +22,8 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from jlink_runtime import (  # noqa: E402
+    JLINK_SWO_CANDIDATES,
+    resolve_path_candidate,
     default_config_path,
     emit_stream_record,
     get_state_entry,
@@ -54,14 +56,23 @@ def start_stream_reader(stream) -> queue.Queue:
     return line_queue
 
 
-def _auto_viewer_cmd(config: dict, project_config: dict, state: dict) -> list[str]:
+def _find_swo_viewer(config: dict) -> str:
+    """Locate the SWO viewer next to the J-Link Commander binary, then on PATH."""
     jlink_exe = config.get("exe", "")
-    if not jlink_exe:
-        return []
+    if jlink_exe:
+        exe_path = Path(str(jlink_exe)).expanduser()
+        for name in JLINK_SWO_CANDIDATES:
+            viewer = exe_path.with_name(name)
+            if viewer.exists():
+                return str(viewer)
 
-    exe_path = Path(str(jlink_exe)).expanduser()
-    viewer = exe_path.with_name("JLinkSWOViewerCL.exe")
-    if not viewer.exists():
+    viewer_path, _ = resolve_path_candidate(JLINK_SWO_CANDIDATES)
+    return viewer_path
+
+
+def _auto_viewer_cmd(config: dict, project_config: dict, state: dict) -> list[str]:
+    viewer = _find_swo_viewer(config)
+    if not viewer:
         return []
 
     last_debug = get_state_entry(state, "last_debug")
@@ -72,7 +83,7 @@ def _auto_viewer_cmd(config: dict, project_config: dict, state: dict) -> list[st
 
     # JLinkSWOViewerCL 不同版本支持的参数差异很大。
     # 这里退回到最稳妥的最小命令，只传 device，避免因 -itf/-speed 不兼容直接失败。
-    return [str(viewer), "-device", str(device)]
+    return [viewer, "-device", str(device)]
 
 
 def main() -> None:

@@ -16,6 +16,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from jlink_runtime import (
+    JLINK_CANDIDATES,
     load_local_config,
     load_project_config,
     save_project_config,
@@ -26,6 +27,7 @@ from jlink_runtime import (
     normalize_path,
     hidden_subprocess_kwargs,
     is_missing,
+    resolve_tool_param,
 )
 
 # J-Link Commander 命令模板
@@ -56,7 +58,7 @@ ERROR_PATTERNS = [
 
 
 def build_jlink_cmd(exe: str, device: str, script_path: str, serial_no: str = "") -> list:
-    """构建 JLink.exe 命令行"""
+    """构建 J-Link Commander 命令行"""
     cmd = [exe, "-NoGui", "1", "-ExitOnError", "1", "-AutoConnect", "1"]
     cmd.extend(["-Device", device])
     if serial_no:
@@ -82,7 +84,7 @@ def parse_pc(stdout: str) -> str:
 
 
 def parse_output(stdout: str, action: str) -> dict:
-    """解析 JLink.exe 输出，提取关键信息"""
+    """解析 J-Link Commander 输出，提取关键信息"""
     result = {"raw": stdout}
 
     # 检查错误模式
@@ -223,7 +225,7 @@ def run_jlink(exe: str, device: str, action: str, interface: str = "SWD",
             return {
                 "status": "error",
                 "action": action,
-                "error": {"code": "exe_not_found", "message": f"JLink.exe 不存在: {exe}"},
+                "error": {"code": "exe_not_found", "message": f"J-Link Commander (JLinkExe) 不存在: {exe}"},
             }
 
         if file and not os.path.isfile(file):
@@ -244,7 +246,7 @@ def run_jlink(exe: str, device: str, action: str, interface: str = "SWD",
             return {
                 "status": "error",
                 "action": action,
-                "error": {"code": "timeout", "message": "JLink.exe 执行超时(120s)"},
+                "error": {"code": "timeout", "message": "JLinkExe 执行超时(120s)"},
             }
         except Exception as e:
             return {
@@ -387,14 +389,14 @@ def resolve_device_params(args):
         speed = "4000"
         speed_source = "default"
 
-    # exe: CLI > 环境级配置
-    exe = args.exe
-    exe_source = "cli"
-    if is_missing(exe):
-        exe = local_config.get("exe", "")
-        exe_source = "config" if not is_missing(exe) else ""
-    if not is_missing(exe):
-        exe = normalize_path(str(exe))
+    # exe: CLI > 环境级配置 > PATH > 常见安装目录
+    exe, exe_source = resolve_tool_param(
+        "exe",
+        args.exe,
+        local_config=local_config,
+        local_keys=["exe"],
+        path_candidates=JLINK_CANDIDATES,
+    )
 
     # serial_no: CLI > 环境级配置 > state
     serial_no = args.serial_no
@@ -423,7 +425,7 @@ def resolve_device_params(args):
 def main():
     parser = argparse.ArgumentParser(description="J-Link 设备探测/烧录/内存读写/寄存器/复位/在线调试")
     parser.add_argument("action", choices=ALL_ACTIONS)
-    parser.add_argument("--exe", default="", help="JLink.exe 路径")
+    parser.add_argument("--exe", default="", help="J-Link Commander 路径（Linux: JLinkExe）")
     parser.add_argument("--device", default=None, help="芯片型号（如 STM32F407VG）")
     parser.add_argument("--interface", default=None, help="调试接口")
     parser.add_argument("--speed", default=None, help="调试速率 kHz")

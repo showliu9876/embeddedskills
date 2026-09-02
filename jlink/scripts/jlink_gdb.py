@@ -18,6 +18,8 @@ if str(ROOT_DIR) not in sys.path:
 
 from jlink_gdb_common import build_gdb_commands, parse_gdb_output, run_gdb_commands  # noqa: E402
 from jlink_runtime import (  # noqa: E402
+    ARM_GDB_CANDIDATES,
+    JLINK_GDBSERVER_CANDIDATES,
     build_artifacts,
     default_config_path,
     get_state_entry,
@@ -34,6 +36,7 @@ from jlink_runtime import (  # noqa: E402
     output_json,
     parameter_context,
     resolve_param,
+    resolve_tool_param,
     save_project_config,
     update_state_entry,
     workspace_root,
@@ -139,7 +142,7 @@ def cleanup(procs: list[subprocess.Popen]) -> None:
 
 
 def add_common_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--gdbserver-exe", default=None, help="JLinkGDBServerCL.exe 路径")
+    parser.add_argument("--gdbserver-exe", default=None, help="J-Link GDB Server 路径（Linux: JLinkGDBServerCLExe）")
     parser.add_argument("--gdb-exe", default=None, help="arm-none-eabi-gdb 路径")
     parser.add_argument("--device", default=None, help="芯片型号")
     parser.add_argument("--elf", default=None, help="ELF 文件路径")
@@ -280,23 +283,22 @@ def main() -> None:
 
     parameter_sources: dict[str, str] = {}
     try:
-        gdbserver_exe, parameter_sources["gdbserver_exe"] = resolve_param(
+        gdbserver_exe, parameter_sources["gdbserver_exe"] = resolve_tool_param(
             "gdbserver_exe",
             args.gdbserver_exe,
-            config=config,
-            config_keys=["gdbserver_exe"],
+            local_config=config,
+            local_keys=["gdbserver_exe"],
+            path_candidates=JLINK_GDBSERVER_CANDIDATES,
             required=True,
-            normalize_as_path=True,
-            workspace=str(workspace),
         )
-        gdb_exe, parameter_sources["gdb_exe"] = resolve_param(
+        gdb_exe, parameter_sources["gdb_exe"] = resolve_tool_param(
             "gdb_exe",
             args.gdb_exe,
-            config=config,
-            config_keys=["gdb_exe"],
+            local_config=config,
+            local_keys=["gdb_exe"],
+            path_candidates=ARM_GDB_CANDIDATES,
+            install_dir_candidates=(),
             required=True,
-            normalize_as_path=True,
-            workspace=str(workspace),
         )
         # device 从工程配置或 state 解析
         device = dev_params["device"]
@@ -348,7 +350,7 @@ def main() -> None:
         sys.exit(1)
 
     if not os.path.isfile(gdbserver_exe):
-        message = f"JLinkGDBServerCL.exe 不存在: {gdbserver_exe}"
+        message = f"J-Link GDB Server (JLinkGDBServerCLExe) 不存在: {gdbserver_exe}"
         result = make_result(
             status="error",
             action=args.command,

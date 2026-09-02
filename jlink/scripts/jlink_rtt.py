@@ -18,6 +18,8 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from jlink_runtime import (  # noqa: E402
+    JLINK_GDBSERVER_CANDIDATES,
+    JLINK_RTT_CANDIDATES,
     default_config_path,
     emit_stream_record,
     get_state_entry,
@@ -34,6 +36,7 @@ from jlink_runtime import (  # noqa: E402
     output_json,
     parameter_context,
     resolve_param,
+    resolve_tool_param,
     save_project_config,
     update_state_entry,
     workspace_root,
@@ -214,8 +217,8 @@ def resolve_device_params(args, project_config: dict, state_lookup: dict) -> dic
 def main() -> None:
     parser = argparse.ArgumentParser(description="J-Link RTT 日志读取")
     parser.add_argument("--device", default=None, help="芯片型号")
-    parser.add_argument("--gdbserver-exe", default=None, help="JLinkGDBServerCL.exe 路径")
-    parser.add_argument("--rtt-exe", default=None, help="JLinkRTTClient.exe 路径")
+    parser.add_argument("--gdbserver-exe", default=None, help="J-Link GDB Server 路径（Linux: JLinkGDBServerCLExe）")
+    parser.add_argument("--rtt-exe", default=None, help="J-Link RTT Client 路径（Linux: JLinkRTTClient）")
     parser.add_argument("--interface", default=None, help="调试接口")
     parser.add_argument("--speed", default=None, help="调试速率 kHz")
     parser.add_argument("--serial-no", default=None, help="探针序列号")
@@ -247,23 +250,21 @@ def main() -> None:
         if is_missing(device):
             raise ValueError("缺少必要参数: device")
 
-        gdbserver_exe, parameter_sources["gdbserver_exe"] = resolve_param(
+        gdbserver_exe, parameter_sources["gdbserver_exe"] = resolve_tool_param(
             "gdbserver_exe",
             args.gdbserver_exe,
-            config=config,
-            config_keys=["gdbserver_exe"],
+            local_config=config,
+            local_keys=["gdbserver_exe"],
+            path_candidates=JLINK_GDBSERVER_CANDIDATES,
             required=True,
-            normalize_as_path=True,
-            workspace=str(workspace),
         )
-        rtt_exe, parameter_sources["rtt_exe"] = resolve_param(
+        rtt_exe, parameter_sources["rtt_exe"] = resolve_tool_param(
             "rtt_exe",
             args.rtt_exe,
-            config=config,
-            config_keys=["rtt_exe"],
+            local_config=config,
+            local_keys=["rtt_exe"],
+            path_candidates=JLINK_RTT_CANDIDATES,
             required=True,
-            normalize_as_path=True,
-            workspace=str(workspace),
         )
         interface = dev_params["interface"]
         parameter_sources["interface"] = dev_params["interface_source"]
@@ -300,7 +301,7 @@ def main() -> None:
         sys.exit(1)
 
     if not os.path.isfile(gdbserver_exe):
-        message = f"JLinkGDBServerCL.exe 不存在: {gdbserver_exe}"
+        message = f"J-Link GDB Server (JLinkGDBServerCLExe) 不存在: {gdbserver_exe}"
         result = make_result(
             status="error",
             action="rtt",
@@ -317,7 +318,7 @@ def main() -> None:
         sys.exit(1)
 
     if not os.path.isfile(rtt_exe):
-        message = f"JLinkRTTClient.exe 不存在: {rtt_exe}"
+        message = f"J-Link RTT Client (JLinkRTTClient) 不存在: {rtt_exe}"
         result = make_result(
             status="error",
             action="rtt",

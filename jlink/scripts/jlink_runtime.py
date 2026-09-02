@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -15,6 +16,20 @@ STATE_DIR_NAME = ".embeddedskills"
 STATE_FILE_NAME = "state.json"
 PROJECT_CONFIG_FILE_NAME = "config.json"
 SKILL_NAME = "jlink"
+
+# SEGGER tool command names. Linux names first, Windows names kept as fallback.
+JLINK_CANDIDATES = ("JLinkExe", "JLink.exe")
+JLINK_GDBSERVER_CANDIDATES = ("JLinkGDBServerCLExe", "JLinkGDBServerCL.exe")
+JLINK_RTT_CANDIDATES = ("JLinkRTTClient", "JLinkRTTClient.exe")
+JLINK_SWO_CANDIDATES = ("JLinkSWOViewerCLExe", "JLinkSWOViewerCL.exe")
+ARM_GDB_CANDIDATES = ("arm-none-eabi-gdb", "gdb-multiarch", "arm-none-eabi-gdb.exe")
+
+# Install prefixes probed when the command is not on PATH.
+JLINK_INSTALL_DIRS = (
+    "/opt/SEGGER/JLink",
+    "/usr/share/segger-jlink",
+    "/usr/local/share/SEGGER/JLink",
+)
 
 
 def now_iso() -> str:
@@ -234,6 +249,66 @@ def resolve_param(
                 source = f"state:{state_key}"
     if normalize_as_path and not is_missing(value):
         value = normalize_path_with_base(str(value), workspace_root(workspace))
+    if required and is_missing(value):
+        raise ValueError(f"缺少必要参数: {name}")
+    return value, source
+
+
+def resolve_path_candidate(candidates: tuple[str, ...] | list[str] | None) -> tuple[str, str]:
+    """Probe PATH for the first available candidate command name."""
+    for candidate in candidates or []:
+        if is_missing(candidate):
+            continue
+        resolved = shutil.which(str(candidate))
+        if resolved:
+            return normalize_path(resolved), f"path:{candidate}"
+    return "", ""
+
+
+def resolve_install_dir_candidate(candidates: tuple[str, ...] | list[str] | None) -> tuple[str, str]:
+    """Probe well-known install prefixes for the first available candidate command."""
+    for install_dir in JLINK_INSTALL_DIRS:
+        base = Path(install_dir)
+        if not base.is_dir():
+            continue
+        for candidate in candidates or []:
+            if is_missing(candidate):
+                continue
+            binary = base / str(candidate)
+            if binary.is_file() and os.access(binary, os.X_OK):
+                return normalize_path(str(binary)), f"install_dir:{binary}"
+    return "", ""
+
+
+def resolve_tool_param(
+    name: str,
+    cli_value: Any,
+    *,
+    local_config: dict | None = None,
+    local_keys: list[str] | None = None,
+    path_candidates: tuple[str, ...] | list[str] | None = None,
+    install_dir_candidates: tuple[str, ...] | list[str] | None = None,
+    default: Any = None,
+    required: bool = False,
+) -> tuple[Any, str]:
+    """Resolve a tool executable: CLI > skill/config.json > PATH > install dir > default."""
+    if not is_missing(cli_value):
+        return normalize_path(str(cli_value)), "cli"
+
+    value: Any = None
+    source = ""
+    if local_config and local_keys:
+        value, key = _first_resolved(local_config, local_keys)
+        if not is_missing(value):
+            value = normalize_path(str(value))
+            source = f"config:{key}"
+    if is_missing(value):
+        value, source = resolve_path_candidate(path_candidates)
+    if is_missing(value):
+        value, source = resolve_install_dir_candidate(install_dir_candidates or path_candidates)
+    if is_missing(value) and not is_missing(default):
+        value = default
+        source = f"default:{default}"
     if required and is_missing(value):
         raise ValueError(f"缺少必要参数: {name}")
     return value, source

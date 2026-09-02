@@ -14,9 +14,10 @@ Claude Code skill，通过 J-Link 探针进行嵌入式设备的固件烧录、�
 
 ## 环境要求
 
-- [SEGGER J-Link Software](https://www.segger.com/downloads/jlink/) — 提供 JLink.exe、JLinkGDBServerCL.exe、JLinkRTTClient.exe
+- [SEGGER J-Link Software（Linux DEB/RPM/TGZ）](https://www.segger.com/downloads/jlink/) — 提供 `JLinkExe`、`JLinkGDBServerCLExe`、`JLinkRTTClient`、`JLinkSWOViewerCLExe`，默认安装到 `/opt/SEGGER/JLink`
+- 非 root 用户访问探针需安装 SEGGER 提供的 udev 规则（DEB/RPM 包会自动写入 `/etc/udev/rules.d/`）
 - Python 3.x（仅标准库，无额外依赖）
-- GDB 调试需要 `arm-none-eabi-gdb`（随 [Arm GNU Toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) 安装）
+- GDB 调试需要 `arm-none-eabi-gdb`（`apt install gcc-arm-none-eabi gdb-multiarch`，或 [Arm GNU Toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain)）
 
 ## 配置
 
@@ -26,10 +27,10 @@ Claude Code skill，通过 J-Link 探针进行嵌入式设备的固件烧录、�
 
 ```json
 {
-  "exe": "C:\\Program Files\\SEGGER\\JLink\\JLink.exe",
-  "gdbserver_exe": "C:\\Program Files\\SEGGER\\JLink\\JLinkGDBServerCL.exe",
-  "rtt_exe": "C:\\Program Files\\SEGGER\\JLink\\JLinkRTTClient.exe",
-  "gdb_exe": "C:\\Program Files\\Arm\\GNU Toolchain mingw-w64-x86_64-arm-none-eabi\\bin\\arm-none-eabi-gdb.exe",
+  "exe": "/opt/SEGGER/JLink/JLinkExe",
+  "gdbserver_exe": "/opt/SEGGER/JLink/JLinkGDBServerCLExe",
+  "rtt_exe": "/opt/SEGGER/JLink/JLinkRTTClient",
+  "gdb_exe": "/usr/bin/arm-none-eabi-gdb",
   "serial_no": "",
   "rtt_telnet_port": 0,
   "swo_command": [],
@@ -39,9 +40,9 @@ Claude Code skill，通过 J-Link 探针进行嵌入式设备的固件烧录、�
 
 | 字段 | 必填 | 说明 |
 |------|------|------|
-| `exe` | 是 | JLink.exe 完整路径 |
-| `gdbserver_exe` | 否 | JLinkGDBServerCL.exe 路径，RTT 和 GDB 调试需要 |
-| `rtt_exe` | 否 | JLinkRTTClient.exe 路径，RTT 需要 |
+| `exe` | 否 | `JLinkExe` 完整路径；留空时按 PATH 与 `/opt/SEGGER/JLink` 等安装目录自动探测 |
+| `gdbserver_exe` | 否 | `JLinkGDBServerCLExe` 路径，RTT 和 GDB 调试需要 |
+| `rtt_exe` | 否 | `JLinkRTTClient` 路径，RTT 需要 |
 | `gdb_exe` | 否 | arm-none-eabi-gdb 路径，GDB 源码级调试需要 |
 | `serial_no` | 否 | 探针序列号，多探针场景使用 |
 | `rtt_telnet_port` | 否 | RTT 端口，`0` 使用工具默认值 |

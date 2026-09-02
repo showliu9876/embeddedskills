@@ -21,10 +21,10 @@ skill 目录下的 `config.json` 包含环境级配置（工具路径、端口�
 
 ```json
 {
-  "exe": "C:\\Program Files\\SEGGER\\JLink\\JLink.exe",
-  "gdbserver_exe": "C:\\Program Files\\SEGGER\\JLink\\JLinkGDBServerCL.exe",
-  "rtt_exe": "C:\\Program Files\\SEGGER\\JLink\\JLinkRTTClient.exe",
-  "gdb_exe": "C:\\Program Files\\Arm\\GNU Toolchain mingw-w64-x86_64-arm-none-eabi\\bin\\arm-none-eabi-gdb.exe",
+  "exe": "/opt/SEGGER/JLink/JLinkExe",
+  "gdbserver_exe": "/opt/SEGGER/JLink/JLinkGDBServerCLExe",
+  "rtt_exe": "/opt/SEGGER/JLink/JLinkRTTClient",
+  "gdb_exe": "/usr/bin/arm-none-eabi-gdb",
   "serial_no": "",
   "rtt_telnet_port": 0,
   "swo_command": [],
@@ -32,9 +32,9 @@ skill 目录下的 `config.json` 包含环境级配置（工具路径、端口�
 }
 ```
 
-- `exe`：JLink.exe 完整路径（必填）
-- `gdbserver_exe`：JLinkGDBServerCL.exe 路径，RTT 和 GDB 调试需要
-- `rtt_exe`：JLinkRTTClient.exe 路径
+- `exe`：J-Link Commander（Linux 为 `JLinkExe`）完整路径；留空时按 PATH 与 `/opt/SEGGER/JLink` 等常见安装目录自动探测
+- `gdbserver_exe`：J-Link GDB Server（Linux 为 `JLinkGDBServerCLExe`）路径，RTT 和 GDB 调试需要
+- `rtt_exe`：J-Link RTT Client（Linux 为 `JLinkRTTClient`）路径
 - `gdb_exe`：arm-none-eabi-gdb 路径，GDB 源码级调试需要
 - `serial_no`：默认探针序列号，多探针场景下使用
 - `rtt_telnet_port`：RTT 端口，0 表示使用工具默认值
@@ -104,7 +104,7 @@ skill 目录下的 `config.json` 包含环境级配置（工具路径、端口�
 5. 若当前动作需要 `device` 且仍为空，直接要求用户补充，绝不猜测
 6. 多探针场景未指定 `serial_no` 时，列出探针让用户选择，不自动选择
 7. 按 `operation_mode` 决定是否需要确认后执行
-8. 使用模板生成临时 `.jlink` 命令文件，调用 JLink.exe 时带 `-NoGui 1 -ExitOnError 1 -AutoConnect 1`
+8. 使用模板生成临时 `.jlink` 命令文件，调用 `JLinkExe` 时带 `-NoGui 1 -ExitOnError 1 -AutoConnect 1`
 9. 解析输出和返回码，返回结构化结果
 10. 成功执行后，将确认过的 device/interface/speed 写回 `.embeddedskills/config.json`
 
@@ -149,7 +149,7 @@ python <skill-dir>/scripts/jlink_exec.py step --device GD32F470ZG --count 3 --js
 python <skill-dir>/scripts/jlink_exec.py run-to --device GD32F470ZG --address 0x08001234 --timeout-ms 3000 --json
 ```
 
-通用可选参数：`--interface SWD|JTAG`、`--speed 4000`、`--serial-no <序列号>`、`--exe <JLink.exe路径>`
+通用可选参数：`--interface SWD|JTAG`、`--speed 4000`、`--serial-no <序列号>`、`--exe <JLinkExe路径>`
 
 ### jlink_rtt.py — RTT 日志读取
 
@@ -159,7 +159,7 @@ python <skill-dir>/scripts/jlink_rtt.py --device GD32F470ZG --json
 
 可选参数：`--serial-no`、`--channel`、`--encoding`、`--rtt-port`、`--gdbserver-exe <路径>`、`--rtt-exe <路径>`
 
-RTT 工作原理：脚本先通过 JLinkGDBServerCL.exe 建立调试连接，再启动 JLinkRTTClient.exe 读取 RTT 数据。`--json` 模式输出 JSON Lines。
+RTT 工作原理：脚本先通过 `JLinkGDBServerCLExe` 建立调试连接，再启动 `JLinkRTTClient` 读取 RTT 数据。`--json` 模式输出 JSON Lines。
 
 ### jlink_swo.py — SWO 事件流包装
 
@@ -169,7 +169,7 @@ python <skill-dir>/scripts/jlink_swo.py --json
 
 # 或显式传入 viewer 命令
 python <skill-dir>/scripts/jlink_swo.py \
-  --viewer-cmd JLinkSWOViewerCL.exe -device GD32F470ZG -itf SWD -speed 4000 \
+  --viewer-cmd JLinkSWOViewerCLExe -device GD32F470ZG -itf SWD -speed 4000 \
   --json
 ```
 
