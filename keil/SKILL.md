@@ -11,6 +11,9 @@ argument-hint: "[scan|targets|build|rebuild|clean|flash] ..."
 
 # Keil MDK 工程构建
 
+> **平台限制：仅 Windows。** Keil MDK 的 `UV4.exe` 没有 Linux 版本，本 skill 无法在 Linux 上运行。
+> 本仓库其余 skill 均以 Linux 为默认平台；在 Linux 上构建嵌入式工程请改用 `gcc` 或 `eide` skill。
+
 本 skill 提供 Keil MDK 工程的发现、Target 枚举、构建、重建、清理能力，并返回可供 `jlink/openocd` 继续使用的固件产物路径。`flash` 仅作为兼容入口保留。
 
 ## 配置

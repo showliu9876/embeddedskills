@@ -13,6 +13,9 @@ Claude Code skill，驱动 Keil MDK 进行工程扫描、Target 枚举、编译�
 
 ## 环境要求
 
+> **平台限制：仅 Windows。** `UV4.exe` 没有 Linux 版本，本 skill 无法在 Linux 上运行。
+> 本仓库其余 skill 均以 Linux 为默认平台；在 Linux 上构建嵌入式工程请改用 `gcc` 或 `eide` skill。
+
 - [Keil MDK](https://www.keil.com/mdk5/) — 提供 UV4.exe
 - Python 3.x（仅标准库，无额外依赖）
 
