@@ -52,7 +52,7 @@ def build_payload(data, hex_mode, line_ending):
 def main():
     parser = argparse.ArgumentParser(description="串口数据发送")
     parser.add_argument("data", help="要发送的数据")
-    parser.add_argument("--port", help="串口号 (如 COM3)")
+    parser.add_argument("--port", help="串口设备 (如 /dev/ttyUSB0)")
     parser.add_argument("--baudrate", type=int, help="波特率")
     parser.add_argument("--bytesize", type=int, help="数据位")
     parser.add_argument("--parity", help="校验位 (none/even/odd)")

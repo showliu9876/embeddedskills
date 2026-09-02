@@ -40,7 +40,7 @@ serial skill 的环境级配置目前为空对象 `{}`，因为串口参数属�
 
 | 字段 | 说明 | 默认值 |
 |------|------|--------|
-| `port` | 串口号，如 `COM3` | `""` |
+| `port` | 串口设备，如 `/dev/ttyUSB0` | `""` |
 | `baudrate` | 波特率 | `115200` |
 | `bytesize` | 数据位 | `8` |
 | `parity` | 校验位：none/even/odd/mark/space | `none` |

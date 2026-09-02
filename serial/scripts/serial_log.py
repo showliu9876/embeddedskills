@@ -37,7 +37,7 @@ def error_exit(code, message, use_json):
 
 def main():
     parser = argparse.ArgumentParser(description="串口日志记录")
-    parser.add_argument("--port", help="串口号 (如 COM3)")
+    parser.add_argument("--port", help="串口设备 (如 /dev/ttyUSB0)")
     parser.add_argument("--baudrate", type=int, help="波特率")
     parser.add_argument("--bytesize", type=int, help="数据位")
     parser.add_argument("--parity", help="校验位 (none/even/odd)")
