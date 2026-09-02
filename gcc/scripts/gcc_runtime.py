@@ -1,4 +1,4 @@
-"""gcc skill 私有运行时工具。"""
+"""Private runtime helpers for the gcc skill."""
 
 from __future__ import annotations
 
@@ -27,12 +27,12 @@ def default_config_path(script_file: str) -> Path:
 
 
 def load_local_config(script_file: str | None = None) -> dict:
-    """加载 skill/config.json（环境级配置）
-    
-    路径：当前脚本所在 skill 目录下的 config.json
+    """Load skill/config.json (machine-level config).
+
+    Path: config.json in the skill directory containing the current script.
     """
     if script_file is None:
-        # 获取调用者的文件路径
+        # Resolve the caller's file path
         import inspect
         frame = inspect.currentframe()
         if frame and frame.f_back:
@@ -44,7 +44,7 @@ def load_local_config(script_file: str | None = None) -> dict:
 
 
 def save_local_config(data: dict, script_file: str | None = None) -> Path | None:
-    """保存环境级配置到 skill/config.json"""
+    """Save machine-level config back to skill/config.json."""
     if script_file is None:
         import inspect
         frame = inspect.currentframe()
@@ -60,10 +60,10 @@ def save_local_config(data: dict, script_file: str | None = None) -> Path | None
 
 
 def load_project_config(workspace: str | None = None) -> dict:
-    """从 workspace/.embeddedskills/config.json 读取本 skill 的工程级配置
-    
-    参数: workspace - 工作区路径，None 时使用 cwd
-    返回: 该 skill 对应的配置字典（如 config["keil"] 或 config["gcc"]）
+    """Read this skill's project-level config from workspace/.embeddedskills/config.json.
+
+    Args: workspace - workspace path; falls back to cwd when None.
+    Returns: the config dict for this skill (e.g. config["keil"] or config["gcc"]).
     """
     ws = workspace_root(workspace)
     config_file = ws / STATE_DIR_NAME / PROJECT_CONFIG_FILE_NAME
@@ -72,10 +72,10 @@ def load_project_config(workspace: str | None = None) -> dict:
 
 
 def save_project_config(workspace: str | None = None, values: dict | None = None) -> Path | None:
-    """写回工程级配置到 workspace/.embeddedskills/config.json
-    
-    - 只更新本 skill 的配置部分，不覆盖其他 skill 的配置
-    - 目录不存在时自动创建 .embeddedskills/
+    """Write project-level config back to workspace/.embeddedskills/config.json.
+
+    - Only updates this skill's section; other skills' config is preserved.
+    - Creates .embeddedskills/ when the directory does not exist.
     """
     if values is None:
         values = {}
@@ -202,7 +202,7 @@ def resolve_param(
     if normalize_as_path and not is_missing(value):
         value = normalize_path(str(value))
     if required and is_missing(value):
-        raise ValueError(f"缺少必要参数: {name}")
+        raise ValueError(f"missing required parameter: {name}")
     return value, source
 
 

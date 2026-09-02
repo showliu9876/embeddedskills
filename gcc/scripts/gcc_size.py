@@ -1,4 +1,4 @@
-"""GCC 嵌入式 ELF 大小分析"""
+"""GCC embedded ELF size analysis."""
 
 import argparse
 import json
@@ -15,7 +15,7 @@ from gcc_runtime import hidden_subprocess_kwargs
 
 
 def _find_size_tool(toolchain_prefix: str, toolchain_path: str) -> str:
-    """拼接 size 工具的完整路径"""
+    """Build the full path to the size tool."""
     tool_name = f"{toolchain_prefix}size"
     if toolchain_path:
         return str(Path(toolchain_path) / tool_name)
@@ -23,7 +23,7 @@ def _find_size_tool(toolchain_prefix: str, toolchain_path: str) -> str:
 
 
 def _run_size(size_exe: str, elf: str, fmt: str) -> str:
-    """调用 arm-none-eabi-size"""
+    """Invoke arm-none-eabi-size."""
     cmd = [size_exe, f"-{fmt}", elf]
     proc = subprocess.run(
         cmd, capture_output=True, text=True, timeout=30,
@@ -31,12 +31,12 @@ def _run_size(size_exe: str, elf: str, fmt: str) -> str:
         **hidden_subprocess_kwargs(),
     )
     if proc.returncode != 0:
-        raise RuntimeError(f"size 执行失败: {proc.stderr.strip()}")
+        raise RuntimeError(f"size failed: {proc.stderr.strip()}")
     return proc.stdout
 
 
 def _parse_size_berkeley(output: str) -> dict:
-    """-B 格式: text data bss dec hex filename"""
+    """-B format: text data bss dec hex filename"""
     lines = output.strip().splitlines()
     if len(lines) < 2:
         return {}
@@ -52,7 +52,7 @@ def _parse_size_berkeley(output: str) -> dict:
 
 
 def _parse_size_sysv(output: str) -> list[dict]:
-    """-A 格式: section size addr"""
+    """-A format: section size addr"""
     sections = []
     for line in output.strip().splitlines():
         m = re.match(r"^(\.\S+)\s+(\d+)\s+(0x[0-9a-fA-F]+|\d+)", line)
@@ -66,7 +66,7 @@ def _parse_size_sysv(output: str) -> list[dict]:
 
 
 def _parse_linker_script(ld_path: str) -> dict:
-    """从链接脚本解析 MEMORY 区域"""
+    """Parse MEMORY regions out of a linker script."""
     content = Path(ld_path).read_text(encoding="utf-8", errors="replace")
     regions = {}
     for m in re.finditer(
@@ -89,10 +89,10 @@ def _parse_linker_script(ld_path: str) -> dict:
 
 def analyze(elf: str, toolchain_prefix: str, toolchain_path: str,
             linker_script: str) -> dict:
-    """分析 ELF 文件大小"""
+    """Analyze the size of an ELF file."""
     elf_path = Path(elf).resolve()
     if not elf_path.exists():
-        return _error("size", "elf_not_found", f"ELF 文件不存在: {elf_path}")
+        return _error("size", "elf_not_found", f"ELF file not found: {elf_path}")
 
     size_exe = _find_size_tool(toolchain_prefix, toolchain_path)
 
@@ -106,7 +106,7 @@ def analyze(elf: str, toolchain_prefix: str, toolchain_path: str,
     sections = _parse_size_sysv(sysv_output)
 
     if not berkeley:
-        return _error("size", "parse_failed", "无法解析 size 输出")
+        return _error("size", "parse_failed", "cannot parse size output")
 
     summary = dict(berkeley)
     summary["flash_used"] = berkeley["text"] + berkeley["data"]
@@ -117,7 +117,7 @@ def analyze(elf: str, toolchain_prefix: str, toolchain_path: str,
         "sections": sections,
     }
 
-    # 解析链接脚本计算使用率
+    # Parse the linker script to compute usage ratios
     if linker_script:
         ld_path = Path(linker_script).resolve()
         if ld_path.exists():
@@ -146,21 +146,21 @@ def analyze(elf: str, toolchain_prefix: str, toolchain_path: str,
 
 def compare(elf1: str, elf2: str, toolchain_prefix: str,
             toolchain_path: str) -> dict:
-    """对比两个 ELF 的大小"""
+    """Compare the sizes of two ELF files."""
     size_exe = _find_size_tool(toolchain_prefix, toolchain_path)
 
     results = {}
     for label, path in [("baseline", elf1), ("current", elf2)]:
         elf_path = Path(path).resolve()
         if not elf_path.exists():
-            return _error("compare", "elf_not_found", f"ELF 文件不存在: {elf_path}")
+            return _error("compare", "elf_not_found", f"ELF file not found: {elf_path}")
         try:
             output = _run_size(size_exe, str(elf_path), "B")
         except (RuntimeError, FileNotFoundError, subprocess.TimeoutExpired) as e:
             return _error("compare", "size_failed", str(e))
         parsed = _parse_size_berkeley(output)
         if not parsed:
-            return _error("compare", "parse_failed", f"无法解析: {elf_path}")
+            return _error("compare", "parse_failed", f"cannot parse: {elf_path}")
         parsed["elf"] = str(elf_path)
         results[label] = parsed
 
@@ -194,19 +194,19 @@ def output_json(data: dict):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="GCC 嵌入式 ELF 大小分析")
+    parser = argparse.ArgumentParser(description="GCC embedded ELF size analysis")
     sub = parser.add_subparsers(dest="command")
 
-    analyze_p = sub.add_parser("analyze", help="分析 ELF 大小")
-    analyze_p.add_argument("--elf", required=True, help="ELF 文件路径")
+    analyze_p = sub.add_parser("analyze", help="analyze ELF size")
+    analyze_p.add_argument("--elf", required=True, help="ELF file path")
     analyze_p.add_argument("--toolchain-prefix", default="arm-none-eabi-")
     analyze_p.add_argument("--toolchain-path", default="")
-    analyze_p.add_argument("--linker-script", default="", help="链接脚本路径")
+    analyze_p.add_argument("--linker-script", default="", help="linker script path")
     analyze_p.add_argument("--json", action="store_true", dest="as_json")
 
-    compare_p = sub.add_parser("compare", help="对比两个 ELF 大小")
-    compare_p.add_argument("--elf", required=True, help="基准 ELF")
-    compare_p.add_argument("--compare", required=True, help="对比 ELF")
+    compare_p = sub.add_parser("compare", help="compare the size of two ELF files")
+    compare_p.add_argument("--elf", required=True, help="baseline ELF")
+    compare_p.add_argument("--compare", required=True, help="ELF to compare against")
     compare_p.add_argument("--toolchain-prefix", default="arm-none-eabi-")
     compare_p.add_argument("--toolchain-path", default="")
     compare_p.add_argument("--json", action="store_true", dest="as_json")
@@ -236,7 +236,7 @@ def main():
                     print(f" / {s['ram_total']} ({s['ram_percent']}%)", end="")
                 print()
             else:
-                print(f"错误: {result['error']['message']}", file=sys.stderr)
+                print(f"Error: {result['error']['message']}", file=sys.stderr)
                 sys.exit(1)
 
     elif args.command == "compare":
@@ -251,14 +251,14 @@ def main():
             if result["status"] == "ok":
                 s = result["summary"]
                 d = result["details"]
-                print(f"基准: {d['baseline']['elf']}")
-                print(f"对比: {d['current']['elf']}")
+                print(f"Baseline: {d['baseline']['elf']}")
+                print(f"Current:  {d['current']['elf']}")
                 for key in ("delta_text", "delta_data", "delta_bss", "delta_total"):
                     val = s[key]
                     sign = "+" if val > 0 else ""
                     print(f"  {key.replace('delta_', ''):>5}: {sign}{val} bytes")
             else:
-                print(f"错误: {result['error']['message']}", file=sys.stderr)
+                print(f"Error: {result['error']['message']}", file=sys.stderr)
                 sys.exit(1)
     else:
         parser.print_help()
