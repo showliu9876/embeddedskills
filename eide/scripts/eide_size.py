@@ -25,7 +25,7 @@ from eide_runtime import (  # noqa: E402
     make_result,
     make_timing,
     normalize_path,
-    now_io,
+    now_iso,
     resolve_tool_param,
     workspace_root,
 )

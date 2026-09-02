@@ -5,7 +5,7 @@
 `unify_builder` 是 EIDE 扩展的统一构建后端，位于 VS Code 扩展目录下：
 
 ```
-<vscode-extensions>/cl.eide-<version>/res/tools/win32/unify_builder/
+<vscode-extensions>/cl.eide-<version>/res/tools/linux/x86_64/unify_builder/
 ```
 
 ### 命令

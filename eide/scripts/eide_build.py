@@ -57,10 +57,10 @@ def _find_builder_exe(builder_dir: str) -> str:
         return ""
 
     candidates = [
-        dir_path / "unify_builder.exe",
         dir_path / "unify_builder",
-        dir_path / "bin" / "unify_builder.exe",
         dir_path / "bin" / "unify_builder",
+        dir_path / "unify_builder.exe",
+        dir_path / "bin" / "unify_builder.exe",
     ]
     for c in candidates:
         if c.is_file():
@@ -69,8 +69,8 @@ def _find_builder_exe(builder_dir: str) -> str:
     for item in dir_path.iterdir():
         name = item.name.lower()
         if item.is_file() and (
-            name == "unify_builder.exe"
-            or name == "unify_builder"
+            name == "unify_builder"
+            or name == "unify_builder.exe"
             or name.startswith("unify_builder")
         ):
             return str(item.resolve())
@@ -560,7 +560,7 @@ def main() -> None:
             None,
             local_config=local_config,
             local_keys=["builder_exe"],
-            default="unify_builder.exe",
+            default="unify_builder",
         )
 
         # Resolve the actual builder executable

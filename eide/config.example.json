@@ -1,6 +1,6 @@
 {
-  "builder_dir": "C:\\Users\\Administrator\\.vscode\\extensions\\cl.eide-3.27.0\\res\\tools\\win32\\unify_builder",
-  "builder_exe": "unify_builder.exe",
+  "builder_dir": "~/.vscode/extensions/cl.eide-3.27.0/res/tools/linux/x86_64/unify_builder",
+  "builder_exe": "unify_builder",
   "code_exe": "code",
   "toolchain_prefix": "arm-none-eabi-",
   "operation_mode": 1

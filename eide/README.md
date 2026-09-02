@@ -27,8 +27,8 @@ Claude Code skill，驱动 EIDE (Embedded IDE) 进行工程扫描、构建配置
 
 ```json
 {
-  "builder_dir": "C:\\Users\\<user>\\.vscode\\extensions\\cl.eide-3.27.0\\res\\tools\\win32\\unify_builder",
-  "builder_exe": "unify_builder.exe",
+  "builder_dir": "~/.vscode/extensions/cl.eide-3.27.0/res/tools/linux/x86_64/unify_builder",
+  "builder_exe": "unify_builder",
   "code_exe": "code",
   "toolchain_prefix": "arm-none-eabi-",
   "operation_mode": 1
@@ -37,9 +37,9 @@ Claude Code skill，驱动 EIDE (Embedded IDE) 进行工程扫描、构建配置
 
 | 字段 | 必填 | 说明 |
 |------|------|------|
-| `builder_dir` | 是 | EIDE unify_builder 所在目录 |
-| `builder_exe` | 否 | builder 可执行文件名，默认 `unify_builder.exe` |
-| `code_exe` | 否 | VS Code CLI 路径，默认从 PATH 查找 |
+| `builder_dir` | 否 | EIDE unify_builder 所在目录；留空时自动探测 `~/.vscode`、`~/.vscode-server`、`~/.vscode-oss`、`~/.cursor` 扩展目录 |
+| `builder_exe` | 否 | builder 可执行文件名，默认 `unify_builder` |
+| `code_exe` | 否 | VS Code CLI 路径，默认从 PATH 查找 `code`/`codium`/`code-oss`/`code-insiders` |
 | `toolchain_prefix` | 否 | size 分析用的工具链前缀，默认 `arm-none-eabi-` |
 | `operation_mode` | 否 | `1` 直接执行 / `2` 输出风险摘要 / `3` 执行前确认 |
 

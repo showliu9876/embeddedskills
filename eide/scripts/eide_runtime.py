@@ -202,32 +202,51 @@ def _first_resolved(mapping: dict, keys: list[str]) -> tuple[Any, str | None]:
     return None, None
 
 
+# EIDE ships one unify_builder per platform under res/tools/<platform>.
+# Linux variants first, win32 kept last as a fallback.
+BUILDER_PLATFORM_DIRS = (
+    "linux/x86_64",
+    "linux/arm64",
+    "linux",
+    "win32",
+)
+
+# VS Code (and forks) extension roots on Linux.
+VSCODE_EXTENSION_ROOTS = (
+    "~/.vscode/extensions",
+    "~/.vscode-server/extensions",
+    "~/.vscode-oss/extensions",
+    "~/.cursor/extensions",
+)
+
+
 def _auto_detect_builder_dir() -> str:
-    vscode_ext = os.environ.get("USERPROFILE", os.path.expanduser("~"))
-    base = Path(vscode_ext) / ".vscode" / "extensions"
-    if base.exists():
+    for root in VSCODE_EXTENSION_ROOTS:
+        base = Path(root).expanduser()
+        if not base.is_dir():
+            continue
         for d in sorted(base.iterdir(), reverse=True):
-            if d.is_dir() and d.name.startswith("cl.eide-"):
-                builder_dir = d / "res" / "tools" / "win32" / "unify_builder"
+            if not (d.is_dir() and d.name.startswith("cl.eide-")):
+                continue
+            for platform_dir in BUILDER_PLATFORM_DIRS:
+                builder_dir = d / "res" / "tools" / platform_dir / "unify_builder"
                 if builder_dir.exists():
                     return str(builder_dir.resolve())
     return ""
 
 
 def _auto_detect_code() -> str:
-    code = which("code")
-    if code:
-        return str(Path(code).resolve())
+    for command in ("code", "codium", "code-oss", "code-insiders"):
+        found = which(command)
+        if found:
+            return str(Path(found).resolve())
     candidates = [
-        r"C:\Program Files\Microsoft VS Code\bin\code.cmd",
-        r"C:\Program Files (x86)\Microsoft VS Code\bin\code.cmd",
-        os.path.join(
-            os.environ.get("LOCALAPPDATA", ""),
-            "Programs",
-            "Microsoft VS Code",
-            "bin",
-            "code.cmd",
-        ),
+        "/usr/bin/code",
+        "/usr/share/code/bin/code",
+        "/snap/bin/code",
+        "/opt/visual-studio-code/bin/code",
+        "/var/lib/flatpak/exports/bin/com.visualstudio.code",
+        os.path.expanduser("~/.local/bin/code"),
     ]
     for c in candidates:
         if c and Path(c).is_file():

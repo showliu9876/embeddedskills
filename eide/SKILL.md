@@ -24,17 +24,17 @@ skill 目录下的 `config.json` 包含环境级配置，首次使用前确认 `
 
 ```json
 {
-  "builder_dir": "C:\\Users\\<user>\\.vscode\\extensions\\cl.eide-<version>\\res\\tools\\win32\\unify_builder",
-  "builder_exe": "unify_builder.exe",
+  "builder_dir": "~/.vscode/extensions/cl.eide-<version>/res/tools/linux/x86_64/unify_builder",
+  "builder_exe": "unify_builder",
   "code_exe": "code",
   "toolchain_prefix": "arm-none-eabi-",
   "operation_mode": 1
 }
 ```
 
-- `builder_dir`：EIDE unify_builder 所在目录（必填，位于 VS Code 扩展目录下）
-- `builder_exe`：builder 可执行文件名，Windows 默认 `unify_builder.exe`
-- `code_exe`：VS Code CLI 路径，默认从 PATH 查找 `code`
+- `builder_dir`：EIDE unify_builder 所在目录（位于 VS Code 扩展目录下）；留空时按 `~/.vscode`、`~/.vscode-server`、`~/.vscode-oss`、`~/.cursor` 扩展目录自动探测
+- `builder_exe`：builder 可执行文件名，Linux 默认 `unify_builder`
+- `code_exe`：VS Code CLI 路径，默认从 PATH 查找 `code`/`codium`/`code-oss`/`code-insiders`
 - `toolchain_prefix`：用于 size 分析的工具链前缀，默认 `arm-none-eabi-`
 - `operation_mode`：`1` 直接执行 / `2` 输出风险摘要但不阻塞 / `3` 执行前确认
 
@@ -164,7 +164,7 @@ python <skill-dir>/scripts/eide_size.py compare \
 {
   "status": "error",
   "action": "build",
-  "error": { "code": "builder_not_found", "message": "unify_builder.exe 不存在，请确认 EIDE 扩展已安装" }
+  "error": { "code": "builder_not_found", "message": "unify_builder 不存在，请确认 EIDE 扩展已安装" }
 }
 ```
 
