@@ -33,8 +33,8 @@ skill 目录下的 `config.json` 包含环境级配置（工具路径、端口�
 }
 ```
 
-- `exe`：openocd.exe 路径或命令名（必填）
-- `scripts_dir`：OpenOCD 配置脚本目录，为空时使用 OpenOCD 内置路径
+- `exe`：`openocd` 路径或命令名；留空时从 PATH 自动探测
+- `scripts_dir`：OpenOCD 配置脚本目录；留空时依次探测 `/usr/share/openocd/scripts`、`/usr/local/share/openocd/scripts`、`/usr/share/openocd`，都不存在则使用 OpenOCD 内置路径
 - `gdb_port`：GDB Server 端口，默认 3333
 - `telnet_port`：Telnet 端口，默认 4444
 - `gdb_exe`：arm-none-eabi-gdb 路径，GDB 调试子命令（run/backtrace/locals）需要

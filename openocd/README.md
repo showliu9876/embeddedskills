@@ -18,7 +18,7 @@ Claude Code skill，通过 OpenOCD 进行探针探测、固件烧录、Flash 擦
 
 - [OpenOCD](https://openocd.org/) — 安装后确保 `openocd` 可执行或填写完整路径
 - Python 3.x（仅标准库，无额外依赖）
-- 调试器驱动（ST-Link 需要 ST 官方驱动或 WinUSB/libusb，CMSIS-DAP 免驱）
+- 调试器访问权限：Linux 下依赖 libusb，非 root 用户需安装 OpenOCD 提供的 udev 规则（`/usr/share/openocd/contrib/60-openocd.rules` → `/etc/udev/rules.d/`），CMSIS-DAP、ST-Link、FTDI 均适用
 - [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)（GDB 调试子命令需要 `arm-none-eabi-gdb`）
 
 ## 配置

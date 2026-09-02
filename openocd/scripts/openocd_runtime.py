@@ -16,6 +16,37 @@ STATE_FILE_NAME = "state.json"
 PROJECT_CONFIG_FILE_NAME = "config.json"
 SKILL_NAME = "openocd"
 
+# Command names, Linux first, Windows names kept as fallback.
+OPENOCD_CANDIDATES = ("openocd", "openocd.exe")
+ARM_GDB_CANDIDATES = ("arm-none-eabi-gdb", "gdb-multiarch", "arm-none-eabi-gdb.exe")
+
+# Standard OpenOCD script directories on Linux distributions.
+OPENOCD_SCRIPTS_DIRS = (
+    "/usr/share/openocd/scripts",
+    "/usr/local/share/openocd/scripts",
+    "/usr/share/openocd",
+)
+
+
+def resolve_path_candidate(candidates: tuple[str, ...] | list[str] | None) -> tuple[str, str]:
+    """Probe PATH for the first available candidate command name."""
+    for candidate in candidates or []:
+        if not candidate:
+            continue
+        resolved = which(str(candidate))
+        if resolved:
+            return resolved, f"path:{candidate}"
+    return "", ""
+
+
+def resolve_openocd_scripts_dir() -> tuple[str, str]:
+    """Locate the OpenOCD script tree at its standard Linux install prefixes."""
+    for directory in OPENOCD_SCRIPTS_DIRS:
+        path = Path(directory)
+        if (path / "interface").is_dir() or (path / "target").is_dir():
+            return str(path), f"install_dir:{path}"
+    return "", ""
+
 
 def now_iso() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
@@ -200,13 +231,15 @@ def resolve_param(
             if not is_missing(value):
                 source = f"state:{state_key}"
         if is_missing(value) and name == "exe":
-            discovered = which("openocd") or which("openocd.exe")
+            discovered, discovered_source = resolve_path_candidate(OPENOCD_CANDIDATES)
             if discovered:
                 value = discovered
-                source = "path"
+                source = discovered_source
             else:
                 value = "openocd"
-                source = "default"
+                source = "default:openocd"
+        if is_missing(value) and name == "search":
+            value, source = resolve_openocd_scripts_dir()
     if normalize_as_path and not is_missing(value):
         value = normalize_path(str(value))
     if required and is_missing(value):

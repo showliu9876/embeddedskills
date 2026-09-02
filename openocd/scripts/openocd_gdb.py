@@ -9,7 +9,6 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from shutil import which
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -18,7 +17,9 @@ if str(ROOT_DIR) not in sys.path:
 
 from openocd_gdb_common import build_gdb_commands, parse_gdb_output, run_gdb_commands  # noqa: E402
 from openocd_runtime import (  # noqa: E402
+    ARM_GDB_CANDIDATES,
     build_artifacts,
+    resolve_path_candidate,
     default_config_path,
     get_state_entry,
     hidden_subprocess_kwargs,
@@ -432,10 +433,10 @@ def main() -> None:
                 gdb_exe = normalize_path(project_config.get("gdb_exe"))
                 parameter_sources["gdb_exe"] = "project_config:gdb_exe"
             if is_missing(gdb_exe):
-                discovered = which("arm-none-eabi-gdb") or which("arm-none-eabi-gdb.exe")
+                discovered, discovered_source = resolve_path_candidate(ARM_GDB_CANDIDATES)
                 if discovered:
                     gdb_exe = normalize_path(discovered)
-                    parameter_sources["gdb_exe"] = "path"
+                    parameter_sources["gdb_exe"] = discovered_source
             if is_missing(gdb_exe):
                 raise ValueError("缺少必要参数: gdb_exe")
             elf_file, parameter_sources["elf"] = resolve_param(
