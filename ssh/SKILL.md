@@ -1,160 +1,164 @@
 ---
 name: ssh
-description: SSH/服务器操作助手。用于远程服务器、user@host、SSH 配置、上传下载、部署、跳板机、隧道、端口转发、服务器命令执行等任务；以 ~/.ssh/config 的 Host 别名为唯一服务器清单，优先密钥认证，通过本 skill 的 Python 脚本封装 OpenSSH 操作。
+description: SSH / server operations assistant. Used for remote servers, user@host, SSH configuration, uploads/downloads, deployment, jump hosts, tunneling, port forwarding, and executing server commands; uses Host aliases in ~/.ssh/config as the sole server inventory, favors key-based authentication, and wraps OpenSSH operations via Python scripts in this skill.
 ---
 
 # SSH Skill
 
-## 定位
+## Positioning
 
-这是一个轻量 SSH 操作网关。它不维护独立服务器数据库，默认只读取和写入标准 OpenSSH 配置：
+This is a lightweight SSH operations gateway. It does not maintain an independent server database; by default it only reads and writes standard OpenSSH configuration:
 
 ```text
 ~/.ssh/config
 ```
 
-核心原则：
+Core principles:
 
-- 使用 `Host` 别名标识服务器，不直接记忆 IP/密码。
-- 优先密钥认证和 OpenSSH 原生命令。
-- 通过本 skill 的 `scripts/` 脚本执行 SSH、SCP、配置检查和隧道操作。
-- 环境识别优先使用固定只读探测，不用任意命令拼接临时采集脚本。
-- 写入 `~/.ssh/config` 前必须自动备份。
-- 不鼓励密码落盘；如必须使用密码，优先让 OpenSSH 交互提示或由用户自行配置安全凭据。
+- Use `Host` aliases to identify servers; do not memorize IPs or passwords directly.
+- Favor key-based authentication and native OpenSSH commands.
+- Execute SSH, SCP, configuration inspection, and tunneling operations via scripts in `scripts/` of this skill.
+- Prefer fixed read-only probing for environment identification instead of composing ad-hoc collection scripts from arbitrary commands.
+- Automatically backup `~/.ssh/config` before writing to it.
+- Discourage storing plaintext passwords on disk; if a password must be used, let OpenSSH prompt interactively or have the user configure secure credentials.
 
-## 何时触发
+## When to Trigger
 
-当用户提到以下任务时使用本 skill：
+Use this skill when the user mentions any of the following tasks:
 
-- SSH、远程服务器、服务器 IP/主机名、`user@host`
-- 登录、执行远程命令、检查服务器状态
-- 上传、下载、部署、迁移文件
-- 跳板机、`ProxyJump`、内网访问
-- 隧道、端口转发、数据库连接
-- 配置 `~/.ssh/config`、新增/查找服务器别名
+- SSH, remote servers, server IP/hostname, `user@host`
+- Logging in, executing remote commands, checking server status
+- Uploading, downloading, deploying, or migrating files
+- Jump hosts, `ProxyJump`, intranet/bastion access
+- Tunnels, port forwarding, database connections
+- Configuring `~/.ssh/config`, adding/searching server aliases
 
-不要用于本机 `localhost`、当前目录、本地文件操作或普通网络概念解释。
+Do not use for local `localhost`, current directory, local file operations, or general networking concept explanations.
 
-## 脚本入口
+## Script Entry Points
 
-优先从当前 skill 目录调用脚本。脚本目录为：
+Prefer invoking scripts from the current skill directory. The scripts directory is:
 
 ```text
 scripts/
 ```
 
-命令示例均以当前 skill 目录为基准。
+All command examples are based on the skill directory.
 
-## 常用命令
+## Common Commands
 
-`ssh_exec.py`、`ssh_transfer.py`、`ssh_tunnel.py` 均支持：
+`ssh_exec.py`, `ssh_transfer.py`, and `ssh_tunnel.py` all support:
 
 ```bash
 --accept-new-host-key
---known-hosts-file <临时known_hosts路径>
+--known-hosts-file <temporary_known_hosts_path>
 ```
 
-首次连接已确认可信的新开发板时，可显式追加 `--accept-new-host-key`。测试时如不想写入全局 `known_hosts`，可追加 `--known-hosts-file <临时known_hosts路径>`。
+When connecting to a newly verified trusted dev board for the first time, you may explicitly append `--accept-new-host-key`. If you prefer not to write to the global `known_hosts` during testing, append `--known-hosts-file <temporary_known_hosts_path>`.
 
-### 列出服务器
+### List Servers
 
 ```bash
 python scripts/ssh_config.py list
 ```
 
-### 查找服务器
+### Search Servers
 
 ```bash
-python scripts/ssh_config.py find <关键词>
-python scripts/ssh_config.py find <环境关键词> <能力关键词>
+python scripts/ssh_config.py find <keyword>
+python scripts/ssh_config.py find <environment_keyword> <capability_keyword>
 ```
 
-多个关键词使用 AND 匹配。先用环境组缩小范围，再用设备别名或标签确定目标。
-`search` 是 `find` 的等价命令。
+Multiple keywords use AND matching. Narrow down by environment group first, then
+confirm the target by device alias or tag. `search` is an alias for `find`.
 
-### 确定唯一服务器
+### Resolve a Unique Server
 
 ```bash
-python scripts/ssh_config.py resolve <关键词...>
+python scripts/ssh_config.py resolve <keyword...>
 ```
 
-仅在结果唯一时继续。退出码 2 表示存在多个候选；必须向用户确认，不能自动
-选择第一项。精确的 OpenSSH `Host` 别名优先。
+Proceed only when the result is unique. Exit code 2 indicates multiple candidates
+exist; you must confirm with the user and must not automatically pick the first
+one. Exact OpenSSH `Host` aliases take priority.
 
-### 验证别名解析
+### Verify Alias Resolution
 
 ```bash
-python scripts/ssh_config.py show <别名>
+python scripts/ssh_config.py show <alias>
 ```
 
-### 新增服务器
+### Add Server
 
-写入前脚本会自动备份 `~/.ssh/config`：
+The script automatically backs up `~/.ssh/config` before writing:
 
 ```bash
-python scripts/ssh_config.py add <别名> --host <IP或域名> --user <用户> --port 22 --key ~/.ssh/id_ed25519
+python scripts/ssh_config.py add <alias> --host <IP_or_domain> --user <user> --port 22 --key ~/.ssh/id_ed25519
 ```
 
-可选：
+Optional arguments:
 
 ```bash
---description "说明"
---aliases "常用名称1,常用名称2"
---groups "环境1,环境2"
+--description "Description"
+--aliases "common_name_1,common_name_2"
+--groups "env1,env2"
 --tags tag1,tag2
---location "位置"
---proxy-jump <跳板机别名>
+--location "Location"
+--proxy-jump <bastion_alias>
 ```
 
-### 执行远程命令
+### Execute Remote Command
 
 ```bash
-python scripts/ssh_exec.py <别名> "命令" --timeout 30
+python scripts/ssh_exec.py <alias> "command" --timeout 30
 ```
 
-脚本输出 JSON，包含 `success`、`exit_code`、`stdout`、`stderr`。
+The script outputs JSON containing `success`, `exit_code`, `stdout`, and `stderr`.
 
-### 探测远端环境
+### Probe Remote Environment
 
 ```bash
-python scripts/ssh_probe.py <别名>
+python scripts/ssh_probe.py <alias>
 ```
 
-探测脚本只执行内置只读命令，并输出结构化 JSON。它默认启用非交互认证、
-禁止端口和 Agent 转发，并要求主机指纹已经可信。需要先查看命令时使用
-`--dry-run`；只有确认新设备可信时才使用 `--accept-new-host-key`。
-探测入口显式禁用 SSH 配置中的 `ProxyCommand`，不要用它连接必须依赖代理
-命令的目标。OpenSSH 仍会解析用户配置；配置中存在 `Match exec` 时可能执行
-本地命令，因此只对可信的 SSH 配置使用探测入口。
+The probe script only runs built-in read-only commands and outputs structured
+JSON. It enables non-interactive authentication by default, disables port and
+agent forwarding, and requires the host fingerprint to already be trusted. Use
+`--dry-run` to preview the commands first; only use `--accept-new-host-key` once
+a new device is confirmed trusted. The probe entry point explicitly disables
+`ProxyCommand` from the SSH configuration — do not use it to connect to targets
+that require a proxy command. OpenSSH still parses the user configuration; if the
+configuration contains `Match exec`, it may execute local commands, so only use
+the probe entry point with trusted SSH configurations.
 
-### 上传文件
+### Upload File
 
 ```bash
-python scripts/ssh_transfer.py upload <别名> "<本地路径>" "<远程路径>"
+python scripts/ssh_transfer.py upload <alias> "<local_path>" "<remote_path>"
 ```
 
-### 下载文件
+### Download File
 
 ```bash
-python scripts/ssh_transfer.py download <别名> "<远程路径>" "<本地路径>"
+python scripts/ssh_transfer.py download <alias> "<remote_path>" "<local_path>"
 ```
 
-### 建立本地端口转发
+### Establish Local Port Forwarding
 
 ```bash
-python scripts/ssh_tunnel.py <别名> --local-port <本地端口> --remote-host 127.0.0.1 --remote-port <远程端口>
+python scripts/ssh_tunnel.py <alias> --local-port <local_port> --remote-host 127.0.0.1 --remote-port <remote_port>
 ```
 
-隧道命令会前台运行。需要后台长期保持时，先向用户说明影响和停止方式。
+Tunnel commands run in the foreground. When long-running background persistence is required, explain the impact and termination method to the user first.
 
-## 配置格式
+## Configuration Format
 
-推荐配置：
+Recommended configuration:
 
 ```ssh-config
-# description: 开发板
-# aliases: 测试板,主控板
-# groups: 实验室测试环境
+# description: Dev Board
+# aliases: test-board,main-controller
+# groups: lab-test-env
 # tags: embedded,linux
 # location: lab
 Host 1380-P904
@@ -164,7 +168,7 @@ Host 1380-P904
     IdentityFile ~/.ssh/id_ed25519
 ```
 
-跳板机：
+Jump host:
 
 ```ssh-config
 Host bastion
@@ -179,7 +183,7 @@ Host internal-dev
     ProxyJump bastion
 ```
 
-允许保留注释元数据：
+Comment metadata supported:
 
 - `description`
 - `aliases`
@@ -187,27 +191,27 @@ Host internal-dev
 - `tags`
 - `location`
 
-不要在配置中写入真实密码、Token、私钥内容或其他敏感信息。
+Never write plaintext passwords, tokens, private key contents, or other sensitive information into the configuration.
 
-## 操作规则
+## Operational Rules
 
-- 查询类任务可以直接执行。
-- 新增或修改 `~/.ssh/config` 前，脚本必须创建备份。
-- 删除配置、覆盖远程文件、部署、批量执行、端口转发等有风险操作，先向用户确认。
-- 不直接运行裸 `ssh`/`scp`，优先使用本 skill 的脚本；只有在脚本不可用或用户明确请求时，才说明原因并使用回退命令。
-- 不修改 Git、系统服务、防火墙、远程生产环境配置，除非用户明确要求。
-- 执行远程命令时优先只读检查；涉及重启、删除、覆盖、安装、升级时先确认。
-- 输出给用户时说明目标别名、实际 HostName、执行命令、关键结果和失败原因。
+- Query tasks can be executed directly.
+- The script must create a backup before adding or modifying `~/.ssh/config`.
+- Confirm with the user first before risky actions such as deleting configurations, overwriting remote files, deploying, running batch executions, or setting up port forwarding.
+- Do not run raw `ssh`/`scp` directly; prefer scripts in this skill. Only explain the reason and fall back to native commands if scripts are unavailable or explicitly requested by the user.
+- Do not modify Git, system services, firewalls, or remote production configurations unless explicitly requested by the user.
+- Prioritize read-only checks when executing remote commands; confirm first if operations involve rebooting, deleting, overwriting, installing, or upgrading.
+- When reporting to the user, state the target alias, actual HostName, executed command, key results, and reason for failure.
 
-## 故障排查
+## Troubleshooting
 
-优先检查：
+Check in order:
 
-1. `python scripts/ssh_config.py show <别名>`
-2. `ssh -G <别名>` 是否能解析 HostName/User/Port
-3. 密钥文件是否存在，权限是否合适
-4. `ProxyJump` 别名是否也在 `~/.ssh/config`
-5. 网络是否可达，端口是否开放
-6. 首次连接是否需要显式追加 `--accept-new-host-key`
+1. `python scripts/ssh_config.py show <alias>`
+2. Whether `ssh -G <alias>` can resolve HostName/User/Port
+3. Whether the key file exists and has appropriate permissions
+4. Whether the `ProxyJump` alias is also present in `~/.ssh/config`
+5. Whether the network is reachable and the port is open
+6. Whether `--accept-new-host-key` needs to be explicitly appended on initial connection
 
-如果脚本失败，保留真实 stderr，不要吞掉错误。
+If the script fails, preserve the actual stderr and do not swallow errors.

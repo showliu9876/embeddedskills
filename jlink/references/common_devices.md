@@ -1,10 +1,10 @@
-# 常见芯片 Device 名称速查表
+# Common Chip Device Name Reference Table
 
-在 J-Link Commander 中使用的芯片型号名称（区分大小写）。
+Chip model names used in J-Link Commander (case-sensitive).
 
 ## STMicroelectronics
 
-| 系列 | Device 名称示例 |
+| Series | Example Device Names |
 |------|----------------|
 | STM32F0 | STM32F030R8, STM32F072RB |
 | STM32F1 | STM32F103C8, STM32F103RB, STM32F103ZE |
@@ -24,7 +24,7 @@
 
 ## GigaDevice
 
-| 系列 | Device 名称示例 |
+| Series | Example Device Names |
 |------|----------------|
 | GD32F1 | GD32F103C8, GD32F130G8 |
 | GD32F3 | GD32F303CC, GD32F350RB |
@@ -34,7 +34,7 @@
 
 ## Nordic Semiconductor
 
-| 系列 | Device 名称示例 |
+| Series | Example Device Names |
 |------|----------------|
 | nRF51 | nRF51822_xxAA |
 | nRF52 | nRF52832_xxAA, nRF52840_xxAA |
@@ -43,7 +43,7 @@
 
 ## NXP
 
-| 系列 | Device 名称示例 |
+| Series | Example Device Names |
 |------|----------------|
 | LPC | LPC1768, LPC54608J512 |
 | i.MX RT | MIMXRT1052xxx5B, MIMXRT1062xxx5A |
@@ -51,14 +51,14 @@
 
 ## Microchip (Atmel)
 
-| 系列 | Device 名称示例 |
+| Series | Example Device Names |
 |------|----------------|
 | SAM | ATSAMD21G18, ATSAME70Q21 |
 
-## 查找完整列表
+## Finding the Complete List
 
-如果上表未包含目标芯片，可通过以下方式查找：
+If the target chip is not listed in the tables above, search via the following methods:
 
-1. 打开 J-Link Commander，输入 `ExpDevList` 查看完整列表
-2. 在 SEGGER Wiki 搜索: https://wiki.segger.com/Supported_devices
-3. 使用 `JLinkExe` 的 `-device ?` 参数列出所有支持设备
+1. Open J-Link Commander and enter `ExpDevList` to view the full list.
+2. Search the SEGGER Wiki: https://wiki.segger.com/Supported_devices
+3. Use the `JLinkExe` command with the `-device ?` argument to list all supported devices.

@@ -1,23 +1,26 @@
 ---
 name: jlink
 description: >-
-  J-Link 下载与在线调试工具，用于探测设备、烧录固件、读写内存、查看寄存器、复位目标、读取 RTT/SWO 日志，
-  以及在线调试（暂停/恢复/单步/断点运行/调用栈/变量查看）。
-  当用户提到 J-Link、JLink、RTT、烧录固件、写内存、读内存、寄存器查看、目标复位、探针连通性检查、
-  在线调试、单步、断点、调用栈时自动触发，也兼容 /jlink 显式调用。
-  即使用户只是说"烧录一下"、"看看 RTT 输出"或"调试一下"，只要上下文涉及 J-Link 探针就应触发此 skill。
+  J-Link programming and on-target debugging tool for device probing, firmware flashing,
+  memory read/write, register inspection, target reset, RTT/SWO log capture,
+  and on-target debugging (halt / go / step / run-to breakpoint / call stack / variable inspection).
+  Triggers automatically when the user mentions J-Link, JLink, RTT, firmware flashing,
+  memory write, memory read, register inspection, target reset, probe connectivity check,
+  on-target debugging, single-step, breakpoint, or call stack, and supports explicit /jlink calls.
+  Even if the user says "flash it", "check RTT output", or "debug target", trigger this skill
+  whenever the context involves J-Link probes.
 argument-hint: "[info|flash|read-mem|write-mem|regs|reset|halt|go|step|run-to|rtt|swo|gdb] ..."
 ---
 
-# J-Link 下载与在线调试
+# J-Link Flashing and On-Target Debugging
 
-本 skill 提供 J-Link 探针的设备探测、固件烧录、内存读写、寄存器查看、目标复位、RTT 日志读取，以及轻量在线调试和 GDB 源码级调试能力。
+This skill provides device probing, firmware flashing, memory read/write, register inspection, target reset, RTT log capture, lightweight on-target debugging, and source-level GDB debugging for J-Link probes.
 
-## 配置
+## Configuration
 
-### 环境级配置（skill/config.json）
+### Machine-Level Configuration (skill/config.json)
 
-skill 目录下的 `config.json` 包含环境级配置（工具路径、端口号等），首次使用前确认 `exe` 路径正确：
+The `config.json` file in the skill directory contains machine-level configuration (tool paths, port numbers, etc.). Verify the `exe` path before first use:
 
 ```json
 {
@@ -32,18 +35,18 @@ skill 目录下的 `config.json` 包含环境级配置（工具路径、端口�
 }
 ```
 
-- `exe`：J-Link Commander（Linux 为 `JLinkExe`）完整路径；留空时按 PATH 与 `/opt/SEGGER/JLink` 等常见安装目录自动探测
-- `gdbserver_exe`：J-Link GDB Server（Linux 为 `JLinkGDBServerCLExe`）路径，RTT 和 GDB 调试需要
-- `rtt_exe`：J-Link RTT Client（Linux 为 `JLinkRTTClient`）路径
-- `gdb_exe`：arm-none-eabi-gdb 路径，GDB 源码级调试需要
-- `serial_no`：默认探针序列号，多探针场景下使用
-- `rtt_telnet_port`：RTT 端口，0 表示使用工具默认值
-- `swo_command`：可选，完整 SWO viewer 命令数组，供 `jlink_swo.py` 包装
-- `operation_mode`：`1` 直接执行 / `2` 输出风险摘要但不阻塞 / `3` 执行前确认
+- `exe`: Full path to J-Link Commander (`JLinkExe` on Linux); when omitted, auto-probed via PATH and standard installation directories such as `/opt/SEGGER/JLink`
+- `gdbserver_exe`: Path to J-Link GDB Server (`JLinkGDBServerCLExe` on Linux), required for RTT and GDB debugging
+- `rtt_exe`: Path to J-Link RTT Client (`JLinkRTTClient` on Linux)
+- `gdb_exe`: Path to arm-none-eabi-gdb, required for source-level GDB debugging
+- `serial_no`: Default probe serial number, used in multi-probe environments
+- `rtt_telnet_port`: RTT port, `0` to use tool default
+- `swo_command`: Optional full command array for external SWO viewer, wrapped by `jlink_swo.py`
+- `operation_mode`: `1` direct execution / `2` output risk summary without blocking / `3` require confirmation before execution
 
-### 工程级配置（.embeddedskills/config.json）
+### Project-Level Configuration (.embeddedskills/config.json)
 
-设备参数（device/interface/speed）统一在工作区的 `.embeddedskills/config.json` 中管理：
+Device parameters (device/interface/speed) are managed centrally in the workspace's `.embeddedskills/config.json`:
 
 ```json
 {
@@ -55,158 +58,158 @@ skill 目录下的 `config.json` 包含环境级配置（工具路径、端口�
 }
 ```
 
-- `device`：芯片型号（如 STM32F407VG、GD32F470ZG）
-- `interface`：调试接口，SWD 或 JTAG，默认 SWD
-- `speed`：调试速率 kHz，默认 4000
+- `device`: Target chip model (e.g., STM32F407VG, GD32F470ZG)
+- `interface`: Debug interface, SWD or JTAG, defaults to SWD
+- `speed`: Debug speed in kHz, defaults to 4000
 
-参数解析优先级：**CLI 显式参数 > `.embeddedskills/config.json`（工程级）> `skill/config.json`（环境级）> `.embeddedskills/state.json` > 默认值/报错**
+Parameter resolution priority: **Explicit CLI arguments > `.embeddedskills/config.json` (Project-level) > `skill/config.json` (Machine-level) > `.embeddedskills/state.json` > Defaults/Error**
 
-成功执行后，确认过的 device/interface/speed 会自动写回工程配置。
+After successful execution, confirmed device/interface/speed values are automatically written back to project configuration.
 
-## 子命令
+## Subcommands
 
-### 基础操作
+### Basic Operations
 
-| 子命令 | 用途 | 风险 |
-|--------|------|------|
-| `info` | 探测探针与目标连通性 | 低 |
-| `flash` | 烧录固件（.hex / .bin / .elf） | 高 |
-| `read-mem` | 读取内存区域 | 低 |
-| `write-mem` | 写入内存 | 高 |
-| `regs` | 查看 CPU 寄存器 | 低 |
-| `reset` | 复位目标芯片 | 高 |
-| `rtt` | 读取 RTT 日志输出 | 低 |
-| `swo` | 包装外部 SWO viewer 为统一事件流 | 低 |
+| Subcommand | Purpose | Risk |
+|---|---|---|
+| `info` | Probe connectivity with target | Low |
+| `flash` | Flash firmware (.hex / .bin / .elf) | High |
+| `read-mem` | Read memory region | Low |
+| `write-mem` | Write memory region | High |
+| `regs` | Inspect CPU registers | Low |
+| `reset` | Reset target chip | High |
+| `rtt` | Read RTT log output | Low |
+| `swo` | Wrap external SWO viewer into unified event stream | Low |
 
-### 在线调试（JLink Commander）
+### On-Target Debugging (JLink Commander)
 
-| 子命令 | 用途 | 风险 |
-|--------|------|------|
-| `halt` | 暂停 CPU，返回寄存器状态 | 低 |
-| `go` | 恢复 CPU 运行 | 低 |
-| `step` | 单步执行（支持指定步数），返回执行的指令和寄存器 | 低 |
-| `run-to` | 设置断点并运行，等待命中后返回状态 | 低 |
+| Subcommand | Purpose | Risk |
+|---|---|---|
+| `halt` | Halt CPU and return register state | Low |
+| `go` | Resume CPU execution | Low |
+| `step` | Single-step execution (supports step count), returns executed instructions and registers | Low |
+| `run-to` | Set breakpoint and run, wait for hit and return state | Low |
 
-### GDB 源码级调试
+### GDB Source-Level Debugging
 
-| 子命令 | 用途 | 依赖 |
-|--------|------|------|
-| `gdb backtrace/locals` | 查看调用栈和局部变量 | arm-none-eabi-gdb |
-| `gdb break/continue/next/step/finish/until` | one-shot 控制执行流 | arm-none-eabi-gdb |
-| `gdb frame/print/watch/disassemble/threads/crash-report` | one-shot 源码级诊断 | arm-none-eabi-gdb |
+| Subcommand | Purpose | Dependency |
+|---|---|---|
+| `gdb backtrace/locals` | Inspect call stack and local variables | arm-none-eabi-gdb |
+| `gdb break/continue/next/step/finish/until` | One-shot execution flow control | arm-none-eabi-gdb |
+| `gdb frame/print/watch/disassemble/threads/crash-report` | One-shot source-level diagnostics | arm-none-eabi-gdb |
 
-## 执行流程
+## Execution Flow
 
-1. 读取 `skill/config.json`，确认 `exe` 路径有效
-2. 读取 `.embeddedskills/config.json` 获取工程级配置（device/interface/speed）
-3. 读取 `.embeddedskills/state.json` 获取历史状态
-4. 参数解析优先级：**CLI 显式参数 > `.embeddedskills/config.json`（工程级）> `skill/config.json`（环境级）> `.embeddedskills/state.json` > 默认值/报错**
-5. 若当前动作需要 `device` 且仍为空，直接要求用户补充，绝不猜测
-6. 多探针场景未指定 `serial_no` 时，列出探针让用户选择，不自动选择
-7. 按 `operation_mode` 决定是否需要确认后执行
-8. 使用模板生成临时 `.jlink` 命令文件，调用 `JLinkExe` 时带 `-NoGui 1 -ExitOnError 1 -AutoConnect 1`
-9. 解析输出和返回码，返回结构化结果
-10. 成功执行后，将确认过的 device/interface/speed 写回 `.embeddedskills/config.json`
+1. Read `skill/config.json` and verify `exe` path validity.
+2. Read `.embeddedskills/config.json` to get project-level configuration (device/interface/speed).
+3. Read `.embeddedskills/state.json` to get historical state.
+4. Parameter resolution priority: **Explicit CLI arguments > `.embeddedskills/config.json` (Project-level) > `skill/config.json` (Machine-level) > `.embeddedskills/state.json` > Defaults/Error**
+5. If the current action requires `device` and it remains empty, prompt the user directly; never guess.
+6. When multiple probes are present and `serial_no` is not specified, list probes for the user to choose; do not auto-select.
+7. Decide whether confirmation is required before execution based on `operation_mode`.
+8. Generate temporary `.jlink` command file using templates, and call `JLinkExe` with `-NoGui 1 -ExitOnError 1 -AutoConnect 1`.
+9. Parse output and return code to produce structured results.
+10. After successful execution, write confirmed device/interface/speed back to `.embeddedskills/config.json`.
 
-## 脚本调用
+## Script Invocations
 
-skill 目录下有四个 Python 脚本，使用标准库实现，无额外依赖。
+Four Python scripts are available in the skill directory, implemented using the standard library with no external dependencies.
 
-### jlink_exec.py — 基础操作 + 轻量调试
+### jlink_exec.py — Basic Operations + Lightweight Debugging
 
 ```bash
-# 探测连通性
+# Probe connectivity
 python <skill-dir>/scripts/jlink_exec.py info --device GD32F470ZG --json
 
-# 烧录固件
+# Flash firmware
 python <skill-dir>/scripts/jlink_exec.py flash --file build/app.hex --device GD32F470ZG --json
 
-# 烧录 .bin（必须提供地址）
+# Flash .bin (address is mandatory)
 python <skill-dir>/scripts/jlink_exec.py flash --file build/app.bin --device GD32F470ZG --address 0x08000000 --json
 
-# 读取内存
+# Read memory
 python <skill-dir>/scripts/jlink_exec.py read-mem --address 0x08000000 --length 256 --device GD32F470ZG --json
 
-# 写入内存
+# Write memory
 python <skill-dir>/scripts/jlink_exec.py write-mem --address 0x20000000 --value 0x12345678 --device GD32F470ZG --json
 
-# 查看寄存器
+# Inspect registers
 python <skill-dir>/scripts/jlink_exec.py regs --device GD32F470ZG --json
 
-# 复位目标
+# Reset target
 python <skill-dir>/scripts/jlink_exec.py reset --device GD32F470ZG --json
 
-# 暂停 CPU
+# Halt CPU
 python <skill-dir>/scripts/jlink_exec.py halt --device GD32F470ZG --json
 
-# 恢复运行
+# Resume execution
 python <skill-dir>/scripts/jlink_exec.py go --device GD32F470ZG --json
 
-# 单步执行（3 步）
+# Single-step execution (3 steps)
 python <skill-dir>/scripts/jlink_exec.py step --device GD32F470ZG --count 3 --json
 
-# 运行到断点地址
+# Run to breakpoint address
 python <skill-dir>/scripts/jlink_exec.py run-to --device GD32F470ZG --address 0x08001234 --timeout-ms 3000 --json
 ```
 
-通用可选参数：`--interface SWD|JTAG`、`--speed 4000`、`--serial-no <序列号>`、`--exe <JLinkExe路径>`
+Common optional arguments: `--interface SWD|JTAG`, `--speed 4000`, `--serial-no <serial>`, `--exe <JLinkExe path>`
 
-### jlink_rtt.py — RTT 日志读取
+### jlink_rtt.py — RTT Log Capture
 
 ```bash
 python <skill-dir>/scripts/jlink_rtt.py --device GD32F470ZG --json
 ```
 
-可选参数：`--serial-no`、`--channel`、`--encoding`、`--rtt-port`、`--gdbserver-exe <路径>`、`--rtt-exe <路径>`
+Optional arguments: `--serial-no`, `--channel`, `--encoding`, `--rtt-port`, `--gdbserver-exe <path>`, `--rtt-exe <path>`
 
-RTT 工作原理：脚本先通过 `JLinkGDBServerCLExe` 建立调试连接，再启动 `JLinkRTTClient` 读取 RTT 数据。`--json` 模式输出 JSON Lines。
+How RTT works: The script establishes a debug connection via `JLinkGDBServerCLExe` first, then launches `JLinkRTTClient` to capture RTT data. `--json` mode outputs JSON Lines.
 
-### jlink_swo.py — SWO 事件流包装
+### jlink_swo.py — SWO Event Stream Wrapper
 
 ```bash
-# 使用 config.json 里的 swo_command
+# Use swo_command from config.json
 python <skill-dir>/scripts/jlink_swo.py --json
 
-# 或显式传入 viewer 命令
+# Or pass viewer command explicitly
 python <skill-dir>/scripts/jlink_swo.py \
   --viewer-cmd JLinkSWOViewerCLExe -device GD32F470ZG -itf SWD -speed 4000 \
   --json
 ```
 
-`jlink_swo.py` 不直接实现 SWO 协议，而是把外部 viewer 的 stdout/stderr 统一包装成 JSON Lines，便于上层 workflow 或 AI 继续消费。
+`jlink_swo.py` does not implement the SWO protocol directly, but wraps stdout/stderr from an external viewer into unified JSON Lines for consumption by upstream workflows or AI.
 
-### jlink_gdb.py — GDB 源码级调试（需要 arm-none-eabi-gdb）
+### jlink_gdb.py — GDB Source-Level Debugging (requires arm-none-eabi-gdb)
 
 ```bash
-# 执行自定义 GDB 命令序列
+# Execute custom GDB command sequence
 python <skill-dir>/scripts/jlink_gdb.py run \
-  --gdbserver-exe <路径> --gdb-exe <arm-none-eabi-gdb路径> \
+  --gdbserver-exe <path> --gdb-exe <arm-none-eabi-gdb path> \
   --device GD32F470ZG --elf build/app.elf \
   --commands "break main" "continue" "backtrace" "info locals" --json
 
-# 快捷：获取调用栈
+# Shortcut: inspect call stack
 python <skill-dir>/scripts/jlink_gdb.py backtrace \
-  --gdbserver-exe <路径> --gdb-exe <路径> \
+  --gdbserver-exe <path> --gdb-exe <path> \
   --device GD32F470ZG --elf build/app.elf --json
 
-# 快捷：查看局部变量
+# Shortcut: inspect local variables
 python <skill-dir>/scripts/jlink_gdb.py locals \
-  --gdbserver-exe <路径> --gdb-exe <路径> \
+  --gdbserver-exe <path> --gdb-exe <path> \
   --device GD32F470ZG --elf build/app.elf --json
 ```
 
-GDB 调试需要 ELF 文件才能进行源码级调试（断点到函数名、查看变量）。没有 ELF 时仍可使用地址级调试。
+GDB debugging requires an ELF file for source-level debugging (function name breakpoints, variable inspection). Address-level debugging is still supported without an ELF.
 
-## 输出格式
+## Output Format
 
-所有脚本以 JSON 格式返回，基础字段为 `status`（ok/error）、`action`、`summary`、`details`，并可能附带 `context`、`artifacts`、`metrics`、`state`、`next_actions`、`timing`。流式观测命令使用 JSON Lines，并统一输出 `source`、`channel_type`、`stream_type`。
+All scripts return JSON format with base fields `status` (ok/error), `action`, `summary`, and `details`, optionally accompanied by `context`, `artifacts`, `metrics`, `state`, `next_actions`, and `timing`. Streaming observation commands use JSON Lines and uniformly output `source`, `channel_type`, and `stream_type`.
 
-成功示例：
+Success example:
 ```json
 {
   "status": "ok",
   "action": "halt",
-  "summary": "已暂停，PC=0x08049ABC",
+  "summary": "Halted, PC=0x08049ABC",
   "details": {
     "device": "GD32F470ZG",
     "registers": { "PC": "0x08049ABC", "R0": "0x00000004", "..." : "..." }
@@ -214,12 +217,12 @@ GDB 调试需要 ELF 文件才能进行源码级调试（断点到函数名、�
 }
 ```
 
-step 示例（包含执行的指令）：
+step example (including executed instructions):
 ```json
 {
   "status": "ok",
   "action": "step",
-  "summary": "单步3次，PC=0x08049AB4",
+  "summary": "Stepped 3 times, PC=0x08049AB4",
   "details": {
     "steps": [
       { "address": "0x08049AB8", "opcode": "80 1B", "instruction": "SUBS R0, R0, R6" },
@@ -231,12 +234,12 @@ step 示例（包含执行的指令）：
 }
 ```
 
-run-to 示例（断点命中）：
+run-to example (breakpoint hit):
 ```json
 {
   "status": "ok",
   "action": "run-to",
-  "summary": "断点命中 @ 0x08049AB4，PC=0x08049AB4",
+  "summary": "Breakpoint hit @ 0x08049AB4, PC=0x08049AB4",
   "details": {
     "bp_address": "0x08049AB4",
     "bp_hit": true,
@@ -245,42 +248,42 @@ run-to 示例（断点命中）：
 }
 ```
 
-## 核心规则
+## Core Rules
 
-- 不自动猜测 `device` 芯片型号，缺失时必须询问用户
-- 多探针场景不自动选择探针，必须让用户指定序列号
-- 参数解析优先级为：**CLI 显式参数 > `.embeddedskills/config.json`（工程级）> `skill/config.json`（环境级）> `.embeddedskills/state.json` > 默认值/报错**
-- `.bin` 文件必须显式提供烧录地址，缺失时报错
-- 连接失败时给出排查建议（检查连线、供电、接口类型、速度），不自动尝试更激进参数
-- 烧录、写内存、复位在参数完整且用户意图明确时直接执行
-- `run-to` 的断点在单次 JLink 会话内完成设置和清除，不存在跨会话 handle 问题
-- 结果回显中始终包含目标芯片、接口类型和执行动作
-- 产物路径（elf/file）不进入工程配置，仍只依赖 `state.json`
-- `last_flash`/`last_debug` 等运行状态继续写入 `state.json`
+- Never guess target chip `device`; prompt the user when missing.
+- Do not auto-select probes in multi-probe environments; prompt the user to specify serial number.
+- Parameter resolution priority: **Explicit CLI arguments > `.embeddedskills/config.json` (Project-level) > `skill/config.json` (Machine-level) > `.embeddedskills/state.json` > Defaults/Error**
+- Flashing `.bin` files requires an explicit address; raise an error when missing.
+- Provide troubleshooting suggestions on connection failure (check wiring, power, interface type, speed); do not automatically attempt more aggressive parameters.
+- Flashing, memory writing, and resetting execute directly when parameters are complete and user intent is clear.
+- `run-to` breakpoints are set and cleared within a single JLink session, avoiding cross-session handle issues.
+- Execution responses always include target chip, interface type, and action performed.
+- Artifact paths (elf/file) are not stored in project configuration, relying only on `state.json`.
+- Operational states such as `last_flash`/`last_debug` continue to be recorded in `state.json`.
 
-## 调试典型工作流
+## Typical Debugging Workflows
 
-### 快速排查（JLink Commander）
+### Quick Inspection (JLink Commander)
 
 ```
 halt → regs → read-mem → step → go
 ```
-适合查看当前执行位置、寄存器状态、内存值，无需 ELF 和 GDB。
+Suitable for inspecting current execution location, register states, and memory values without ELF or GDB.
 
-### 断点调试（JLink Commander）
+### Breakpoint Debugging (JLink Commander)
 
 ```
 run-to(address) → regs → read-mem → go
 ```
-在指定地址设置断点并等待命中，查看此时的状态。
+Set a breakpoint at a specific address, wait for hit, and inspect target state.
 
-### 源码级调试（GDB）
+### Source-Level Debugging (GDB)
 
 ```
 gdb run --elf app.elf --commands "break main" "continue" "backtrace" "info locals"
 ```
-需要 ELF 文件和 arm-none-eabi-gdb，支持函数名断点和变量查看。
+Requires an ELF file and arm-none-eabi-gdb; supports function name breakpoints and variable inspection.
 
-## 参考
+## References
 
-遇到芯片型号问题时可查阅 `references/common_devices.md`。
+Refer to `references/common_devices.md` when encountering chip device name issues.

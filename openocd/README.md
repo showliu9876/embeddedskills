@@ -1,31 +1,31 @@
 # openocd
 
-Claude Code skill，通过 OpenOCD 进行探针探测、固件烧录、Flash 擦除、GDB Server 启动、目标复位、Telnet 在线调试、GDB 源码级调试以及 Semihosting/ITM 输出捕获。支持 ST-Link、CMSIS-DAP、DAPLink、FTDI 等开源调试器。
+Claude Code skill for probe detection, firmware flashing, flash erasing, GDB Server launch, target reset, Telnet online debugging, GDB source-level debugging, and Semihosting/ITM output capture via OpenOCD. Supports open-source debug probes including ST-Link, CMSIS-DAP, DAPLink, and FTDI.
 
-## 功能
+## Features
 
-- 探针与目标连通性探测
-- 固件烧录（.elf / .hex / .bin）
-- Flash 擦除（支持 `auto|mass|sector` 模式）
-- GDB Server 启动（供 GDB 连接进行源码级调试）
-- 目标复位（支持 halt/run 模式）
-- **Telnet 在线调试**：halt / resume / step / 寄存器查看 / 内存读写 / 硬件断点 / run-to
-- **GDB 调试交互**：执行自定义 GDB 命令序列、快捷调用栈查看、局部变量查看
-- **Semihosting 输出捕获**：捕获目标 `printf` 输出（ARM Semihosting，类似 J-Link RTT）
-- **ITM/SWO 观测**：基于 TPIU/ITM 读取 SWO 输出
+- Probe and target connectivity detection
+- Firmware flashing (.elf / .hex / .bin)
+- Flash erase (supports `auto|mass|sector` modes)
+- GDB Server launch (for GDB connection and source-level debugging)
+- Target reset (supports halt/run modes)
+- **Telnet online debugging**: halt / resume / step / register inspection / memory read/write / hardware breakpoints / run-to
+- **GDB debugging interaction**: custom GDB command sequence execution, quick call stack inspection, local variable inspection
+- **Semihosting output capture**: capture target `printf` output (ARM Semihosting, similar to J-Link RTT)
+- **ITM/SWO observation**: read SWO output based on TPIU/ITM
 
-## 环境要求
+## Prerequisites
 
-- [OpenOCD](https://openocd.org/) — 安装后确保 `openocd` 可执行或填写完整路径
-- Python 3.x（仅标准库，无额外依赖）
-- 调试器访问权限：Linux 下依赖 libusb，非 root 用户需安装 OpenOCD 提供的 udev 规则（`/usr/share/openocd/contrib/60-openocd.rules` → `/etc/udev/rules.d/`），CMSIS-DAP、ST-Link、FTDI 均适用
-- [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)（GDB 调试子命令需要 `arm-none-eabi-gdb`）
+- [OpenOCD](https://openocd.org/) — Ensure `openocd` is executable or configure full path after installation
+- Python 3.x (standard library only, no extra dependencies)
+- Debug probe access permissions: Linux relies on libusb; non-root users must install udev rules provided by OpenOCD (`/usr/share/openocd/contrib/60-openocd.rules` → `/etc/udev/rules.d/`), applicable to CMSIS-DAP, ST-Link, FTDI
+- [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) (`arm-none-eabi-gdb` is required for GDB debugging subcommands)
 
-## 配置
+## Configuration
 
-### 环境级配置（skill/config.json）
+### Environment-Level Configuration (skill/config.json)
 
-复制 `config.example.json` 为 `config.json`，根据实际环境修改：
+Copy `config.example.json` to `config.json` and adjust according to your actual environment:
 
 ```json
 {
@@ -38,18 +38,18 @@ Claude Code skill，通过 OpenOCD 进行探针探测、固件烧录、Flash 擦
 }
 ```
 
-| 字段 | 必填 | 说明 |
-|------|------|------|
-| `exe` | 是 | openocd 路径或命令名 |
-| `scripts_dir` | 否 | OpenOCD 配置脚本目录，为空时使用内置路径 |
-| `gdb_port` | 否 | GDB Server 端口，默认 3333 |
-| `telnet_port` | 否 | Telnet 端口，默认 4444 |
-| `gdb_exe` | 否 | arm-none-eabi-gdb 路径，GDB 调试子命令需要 |
-| `operation_mode` | 否 | `1` 直接执行 / `2` 输出风险摘要 / `3` 执行前确认 |
+| Field | Required | Description |
+|-------|----------|-------------|
+| `exe` | Yes | openocd path or command name |
+| `scripts_dir` | No | OpenOCD configuration script directory, uses built-in path when empty |
+| `gdb_port` | No | GDB Server port, default 3333 |
+| `telnet_port` | No | Telnet port, default 4444 |
+| `gdb_exe` | No | arm-none-eabi-gdb path, required for GDB debugging subcommands |
+| `operation_mode` | No | `1` direct execution / `2` output risk summary / `3` confirm before execution |
 
-### 工程级配置（.embeddedskills/config.json）
+### Project-Level Configuration (.embeddedskills/config.json)
 
-board/interface/target 等工程参数统一在工作区的 `.embeddedskills/config.json` 中管理：
+Project parameters such as board/interface/target are centrally managed in `.embeddedskills/config.json` within the workspace:
 
 ```json
 {
@@ -66,15 +66,15 @@ board/interface/target 等工程参数统一在工作区的 `.embeddedskills/con
 }
 ```
 
-参数解析优先级：**CLI 参数 > 工程配置 > state.json > 默认值**
+Parameter resolution priority: **CLI arguments > project configuration > state.json > defaults**
 
-成功执行后，确认过的参数会自动写回工程配置。
+Upon successful execution, confirmed parameters are automatically written back to the project configuration.
 
-当前实现的基础命令还包括 `targets`、`flash-banks`、`adapter-info`、`raw` 和 `gdb-server`，观测命令除了 `semihosting` 还支持 `itm`。
+Currently implemented basic commands also include `targets`, `flash-banks`, `adapter-info`, `raw`, and `gdb-server`. Observation commands support `itm` in addition to `semihosting`.
 
-## 擦除行为
+## Erase Behavior
 
-- `erase --mode auto`：优先使用 target 映射到的 mass erase，未命中时回退 sector erase
-- `erase --mode mass`：强制整片擦除；当前 target 没有映射时返回 `mass_erase_unsupported`
-- `erase --mode sector`：强制按 bank 执行 `flash erase_sector <bank> 0 last`
-- `.bin` 烧录必须显式提供地址，例如 `0x08000000`
+- `erase --mode auto`: prefers target-mapped mass erase, falls back to sector erase when no match is found
+- `erase --mode mass`: forces mass erase; returns `mass_erase_unsupported` if current target has no mapping
+- `erase --mode sector`: forces bank erase via `flash erase_sector <bank> 0 last`
+- `.bin` flashing must explicitly provide an address, such as `0x08000000`

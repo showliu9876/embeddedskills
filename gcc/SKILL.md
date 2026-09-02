@@ -1,25 +1,28 @@
 ---
 name: gcc
 description: >-
-  GCC 嵌入式工程构建工具（CMake + arm-none-eabi-gcc），用于扫描 CMake 型嵌入式工程、
-  列出预设、配置、编译、重建、清理和分析 ELF 大小。当用户提到 GCC、arm-none-eabi、
-  CMake 嵌入式编译、Ninja 构建、ELF 大小分析、arm-gcc、交叉编译、cmake --build、
-  cmake --preset 时自动触发，也兼容 /gcc 显式调用。即使用户只是说"编译一下"或
-  "看看固件多大"，只要上下文涉及 CMake 嵌入式 GCC 工程就应触发此 skill。
+  GCC embedded project build tool (CMake + arm-none-eabi-gcc) for scanning CMake
+  embedded projects, listing presets, configuring, compiling, rebuilding,
+  cleaning, and analyzing ELF sizes. Triggers automatically when the user mentions
+  GCC, arm-none-eabi, CMake embedded build, Ninja build, ELF size analysis,
+  arm-gcc, cross compilation, cmake --build, or cmake --preset, and also supports
+  explicit /gcc invocations. Even if the user only says "compile it" or "check
+  firmware size", this skill should be triggered as long as the context involves
+  a CMake embedded GCC project.
 argument-hint: "[scan|presets|configure|build|rebuild|clean|size] ..."
 ---
 
-# GCC 嵌入式工程构建
+# GCC Embedded Project Build
 
-本 skill 提供基于 CMake + arm-none-eabi-gcc 的嵌入式工程发现、preset 枚举、配置生成、增量编译、全量重建、清理和 ELF 大小分析能力。
+This skill provides discovery of embedded projects based on CMake + arm-none-eabi-gcc, preset enumeration, configuration generation, incremental compilation, full rebuilds, cleaning, and ELF size analysis.
 
-范围说明：当前仅支持 **CMake 型** GCC 嵌入式工程，不覆盖纯 `Makefile` 工程。
+Scope note: Currently only supports **CMake-based** GCC embedded projects; does not cover pure `Makefile` projects.
 
-## 配置
+## Configuration
 
-### 环境级配置（skill/config.json）
+### Environment-level Configuration (skill/config.json)
 
-skill 目录下的 `config.json` 包含环境级配置，首次使用前确认 `cmake_exe` 路径正确：
+The `config.json` in the skill directory contains environment-level configuration. Confirm that `cmake_exe` is correct before first use:
 
 ```json
 {
@@ -30,14 +33,14 @@ skill 目录下的 `config.json` 包含环境级配置，首次使用前确认 `
 }
 ```
 
-- `cmake_exe`：cmake 可执行文件路径，默认从 PATH 查找
-- `toolchain_prefix`：工具链前缀，默认 `arm-none-eabi-`，用于定位 size 等工具
-- `toolchain_path`：工具链 bin 目录，为空时从 PATH 查找
-- `operation_mode`：`1` 直接执行 / `2` 输出风险摘要但不阻塞 / `3` 执行前确认
+- `cmake_exe`: CMake executable path, searched from PATH by default
+- `toolchain_prefix`: Toolchain prefix, defaults to `arm-none-eabi-`, used to locate size and other tools
+- `toolchain_path`: Toolchain bin directory; searched from PATH when empty
+- `operation_mode`: `1` execute directly / `2` output risk summary without blocking / `3` require confirmation before execution
 
-### 工程级配置（workspace/.embeddedskills/config.json）
+### Project-level Configuration (workspace/.embeddedskills/config.json)
 
-工程级共享配置统一保存在工作区的 `.embeddedskills/config.json` 中：
+Project-level shared configuration is uniformly stored in `.embeddedskills/config.json` in the workspace:
 
 ```json
 {
@@ -49,117 +52,117 @@ skill 目录下的 `config.json` 包含环境级配置，首次使用前确认 `
 }
 ```
 
-- `project`：默认工程路径（相对 workspace），构建成功后会自动更新
-- `preset`：默认 CMake preset 名称，构建成功后会自动更新
-- `log_dir`：构建日志输出目录，默认 `.embeddedskills/build`
+- `project`: Default project path (relative to workspace), automatically updated after successful build
+- `preset`: Default CMake preset name, automatically updated after successful build
+- `log_dir`: Build log output directory, defaults to `.embeddedskills/build`
 
-### 参数解析优先级
+### Parameter Resolution Precedence
 
-参数解析顺序（从高到低）：
-1. CLI 显式参数
-2. 环境级配置（skill/config.json）
-3. 工程级配置（.embeddedskills/config.json）
-4. state.json（上次构建记录）
-5. 搜索/询问
+Parameter resolution order (from highest to lowest):
+1. CLI explicit arguments
+2. Environment-level configuration (skill/config.json)
+3. Project-level configuration (.embeddedskills/config.json)
+4. state.json (last build record)
+5. Search / Prompt user
 
-冲突解决规则：同一参数存在多个来源时，以序号最小的来源为准；高序号来源仅在低序号来源未提供该参数时生效。例如：CLI 已指定 `--preset Debug`，则忽略 state.json 中记录的上次 preset。
+Conflict resolution rule: When the same parameter exists in multiple sources, the source with the lowest ordinal index prevails; higher-index sources only take effect when lower-index sources do not provide the parameter. For example: If CLI specifies `--preset Debug`, the previous preset recorded in state.json is ignored.
 
-## 子命令
+## Subcommands
 
-| 子命令 | 用途 | 风险 |
-|--------|------|------|
-| `scan` | 搜索当前目录下的 CMake 嵌入式工程 | 低 |
-| `presets` | 列出 CMakePresets.json 中的 configure/build preset | 低 |
-| `configure` | 执行 `cmake --preset` 生成构建系统 | 中 |
-| `build` | 增量编译 `cmake --build` | 中 |
-| `rebuild` | 清理后全量重建 | 中 |
-| `clean` | 清理构建目录 | 高 |
-| `size` | 分析 ELF 文件大小（text/data/bss 和内存使用） | 低 |
+| Subcommand | Description | Risk |
+|---|---|---|
+| `scan` | Search for CMake embedded projects in the current directory | Low |
+| `presets` | List configure/build presets in CMakePresets.json | Low |
+| `configure` | Run `cmake --preset` to generate build system | Medium |
+| `build` | Incremental build `cmake --build` | Medium |
+| `rebuild` | Full rebuild after clean | Medium |
+| `clean` | Clean build directory | High |
+| `size` | Analyze ELF file size (text/data/bss and memory usage) | Low |
 
-## 执行流程
+## Execution Workflow
 
-1. 读取 `config.json`，确认 `cmake_exe` 路径有效
-2. 未提供有效子命令时默认执行 `scan`
-3. 未提供工程路径时先执行 `scan` 搜索工程
-4. 发现多个工程或多个 preset 时列出选项让用户选择，绝不自动猜测
-5. `configure/build/rebuild/clean` 按 `operation_mode` 决定是否需要确认
-6. `build` 前自动检测是否已 configure，未配置时提示先执行 configure
-7. `build/rebuild` 成功后返回 `elf_file`，供 `jlink/openocd` 继续使用
-8. `size` 默认分析最近一次构建产物的 .elf 文件
+1. Read `config.json` and verify `cmake_exe` path is valid
+2. When no valid subcommand is provided, default to `scan`
+3. When no project path is provided, run `scan` first to discover projects
+4. When multiple projects or presets are found, list options for user selection; never guess automatically
+5. `configure/build/rebuild/clean` determine whether confirmation is needed according to `operation_mode`
+6. Automatically check whether configured before `build`; prompt to execute configure first if not configured
+7. Return `elf_file` upon successful `build/rebuild` for subsequent use by `jlink/openocd`
+8. `size` defaults to analyzing the .elf file from the most recent build artifact
 
-## 脚本调用
+## Script Invocations
 
-skill 目录下有三个 Python 脚本，使用标准库实现，无额外依赖。
+The skill directory contains three Python scripts implemented using the standard library with no extra dependencies.
 
-### gcc_project.py — 工程扫描与 preset 枚举
+### gcc_project.py — Project Scanning and Preset Enumeration
 
 ```bash
-# 扫描工程
-python <skill-dir>/scripts/gcc_project.py scan --root <搜索目录> --json
+# Scan projects
+python <skill-dir>/scripts/gcc_project.py scan --root <search_directory> --json
 
-# 列出 preset
-python <skill-dir>/scripts/gcc_project.py presets --project <工程目录> --json
+# List presets
+python <skill-dir>/scripts/gcc_project.py presets --project <project_directory> --json
 ```
 
-### gcc_build.py — 配置 / 编译 / 重建 / 清理
+### gcc_build.py — Configure / Build / Rebuild / Clean
 
 ```bash
 python <skill-dir>/scripts/gcc_build.py <configure|build|rebuild|clean> \
-  --cmake <cmake路径> \
-  --project <工程根目录> \
-  --preset <preset名称> \
-  --log-dir <日志目录> \
+  --cmake <cmake_path> \
+  --project <project_root_directory> \
+  --preset <preset_name> \
+  --log-dir <log_directory> \
   --json
 ```
 
-### gcc_size.py — ELF 大小分析
+### gcc_size.py — ELF Size Analysis
 
 ```bash
-# 基本分析
+# Basic analysis
 python <skill-dir>/scripts/gcc_size.py analyze \
-  --elf <elf文件路径> \
+  --elf <elf_file_path> \
   --toolchain-prefix arm-none-eabi- \
-  --linker-script <链接脚本路径> \
+  --linker-script <linker_script_path> \
   --json
 
-# 对比分析
+# Comparison analysis
 python <skill-dir>/scripts/gcc_size.py compare \
-  --elf <elf文件1> \
-  --compare <elf文件2> \
+  --elf <elf_file_1> \
+  --compare <elf_file_2> \
   --toolchain-prefix arm-none-eabi- \
   --json
 ```
 
-## 输出格式
+## Output Format
 
-所有脚本以 JSON 格式返回，基础字段为 `status`（ok/error）、`action`、`summary`、`details`，并可能附带 `context`、`artifacts`、`metrics`、`state`、`next_actions`、`timing`。
+All scripts return results in JSON format with base fields `status` (ok/error), `action`, `summary`, `details`, and optionally `context`, `artifacts`, `metrics`, `state`, `next_actions`, `timing`.
 
-成功示例：
+Success example:
 ```json
 {
   "status": "ok",
   "action": "build",
-  "summary": "build 成功，errors=0 warnings=2",
+  "summary": "build succeeded, errors=0 warnings=2",
   "details": { "project": "...", "preset": "Debug", "build_dir": "...", "elf_file": "...", "log_file": "..." },
   "metrics": { "errors": 0, "warnings": 2, "flash_bytes": 99328, "ram_bytes": 46080 }
 }
 ```
 
-错误示例：
+Error example:
 ```json
 {
   "status": "error",
   "action": "build",
-  "error": { "code": "not_configured", "message": "构建目录不存在，请先执行 configure" }
+  "error": { "code": "not_configured", "message": "Build directory does not exist, please execute configure first" }
 }
 ```
 
-## 核心规则
+## Core Rules
 
-- 不修改 CMakeLists.txt 或任何 CMake 配置文件
-- 当前 skill 仅覆盖 CMake 型 GCC 工程，不对纯 Makefile 工程做识别和构建
-- 不自动猜测工程路径或 preset，有歧义时必须询问用户
-- 参数解析优先级为：CLI 显式参数 > 环境级配置 > 工程级配置 > `.embeddedskills/state.json` > 搜索/询问
-- `clean` 不在自动流程中隐式执行
-- 构建失败时优先展示首个错误和日志文件路径
-- 结果回显中始终包含工程名、preset 名、构建目录路径；构建成功时优先回显 `elf_file`
+- Do not modify CMakeLists.txt or any CMake configuration files
+- Currently this skill only covers CMake-based GCC projects; does not recognize or build pure Makefile projects
+- Do not automatically guess project paths or presets; prompt user when ambiguous
+- Parameter resolution precedence: CLI explicit arguments > Environment-level config > Project-level config > `.embeddedskills/state.json` > Search / Prompt user
+- `clean` is never executed implicitly in automated workflows
+- On build failure, prioritize displaying the first error and log file path
+- Result echo must always include project name, preset name, and build directory path; on successful build, prioritize echoing `elf_file`

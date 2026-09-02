@@ -1,23 +1,23 @@
 ---
 name: can
 description: >-
-  嵌入式 CAN / CAN-FD 调试工具，用于扫描接口、监控报文、发送测试帧、记录日志、数据库文件解码和总线统计。
-  当用户提到 CAN、CAN-FD、DBC 解码、总线抓包、USB-CAN 联调、报文发送、总线统计、
-  PCAN、Vector、slcan、CAN 接口扫描、CAN ID 过滤、ASC 日志、BLF 文件时自动触发，
-  也兼容 /can 显式调用。即使用户只是说"看看 CAN 报文"、"发一帧试试"或"解码一下 DBC"，
-  只要上下文明确提到 CAN 总线通信的操作或问题就应触发此 skill。
+  Embedded CAN / CAN-FD debugging tool for scanning interfaces, monitoring messages,
+  transmitting test frames, logging traffic, decoding database files, and bus statistics.
+  Triggered when user mentions CAN, CAN-FD, DBC decoding, bus packet capture, USB-CAN debugging,
+  message transmission, bus statistics, PCAN, Vector, slcan, CAN interface scanning,
+  CAN ID filtering, ASC logs, or BLF files, and compatible with explicit /can invocation.
 argument-hint: "[scan|monitor|send|log|decode|stats] ..."
 ---
 
-# CAN — 嵌入式 CAN / CAN-FD 调试工具
+# CAN — Embedded CAN / CAN-FD Debugging Tool
 
-统一封装接口发现、实时监控、报文发送、日志记录、数据库文件解码和统计分析能力。
+Provides unified interface discovery, real-time monitoring, message transmission, logging, database decoding, and statistical analysis capabilities.
 
-## 配置
+## Configuration
 
-### 环境级配置 (`skill/config.json`)
+### Environment-Level Configuration (`skill/config.json`)
 
-仅保留 slcan 相关的环境级配置：
+Retains only slcan-related environment-level configuration:
 
 ```json
 {
@@ -26,14 +26,14 @@ argument-hint: "[scan|monitor|send|log|decode|stats] ..."
 }
 ```
 
-| 字段 | 说明 | 默认值 |
-|------|------|--------|
-| `slcan_serial_port` | slcan 场景的串口 | `""` |
-| `slcan_serial_baudrate` | slcan 场景的串口速率 | `115200` |
+| Field | Description | Default |
+|-------|-------------|---------|
+| `slcan_serial_port` | Serial port for slcan | `""` |
+| `slcan_serial_baudrate` | Serial baudrate for slcan | `115200` |
 
-### 工程级配置 (`.embeddedskills/config.json`)
+### Project-Level Configuration (`.embeddedskills/config.json`)
 
-工作区下的 `.embeddedskills/config.json` 存放工程级 CAN 配置：
+Project-level CAN configuration located in `.embeddedskills/config.json` under workspace:
 
 ```json
 {
@@ -47,115 +47,115 @@ argument-hint: "[scan|monitor|send|log|decode|stats] ..."
 }
 ```
 
-| 字段 | 说明 | 默认值 |
-|------|------|--------|
-| `interface` | CAN 后端，如 `pcan` / `vector` / `slcan` | `""` |
-| `channel` | 通道名，如 `PCAN_USBBUS1` | `""` |
-| `bitrate` | 仲裁域比特率 | `500000` |
-| `data_bitrate` | CAN-FD 数据域比特率 | `2000000` |
-| `log_dir` | 日志输出目录 | `.embeddedskills/logs/can` |
+| Field | Description | Default |
+|-------|-------------|---------|
+| `interface` | CAN backend, e.g. `pcan` / `vector` / `slcan` | `""` |
+| `channel` | Channel name, e.g. `PCAN_USBBUS1` | `""` |
+| `bitrate` | Arbitration phase bitrate | `500000` |
+| `data_bitrate` | CAN-FD data phase bitrate | `2000000` |
+| `log_dir` | Log output directory | `.embeddedskills/logs/can` |
 
-### 参数解析优先级
+### Parameter Resolution Priority
 
-1. **CLI 参数** (`--interface`, `--channel`, `--bitrate` 等) - 最高优先级
-2. **工程级配置** (`.embeddedskills/config.json` 中的 `can` 部分)
-3. **状态文件** (`.embeddedskills/state.json` 中的历史记录)
-4. **默认值** - 最低优先级
+1. **CLI Arguments** (`--interface`, `--channel`, `--bitrate`, etc.) - Highest priority
+2. **Project-Level Configuration** (`can` section in `.embeddedskills/config.json`)
+3. **State File** (History records in `.embeddedskills/state.json`)
+4. **Default Values** - Lowest priority
 
-### 自动扫描行为
+### Auto-Scan Behavior
 
-当未指定 `interface` 和 `channel` 时，脚本会自动扫描系统 CAN 接口，按以下步骤处理：
+When `interface` and `channel` are not specified, the scripts automatically scan system CAN interfaces and proceed as follows:
 
-1. 扫描系统中所有可用 CAN 接口
-2. 若只找到一个接口 → 自动使用并写入工程配置
-3. 若找到多个接口 → 返回候选列表，等待用户选择
-4. 若未找到接口 → 提示错误，停止执行
+1. Scan all available CAN interfaces on the system
+2. If only one interface is found → Automatically use it and save to project configuration
+3. If multiple interfaces are found → Return candidate list and prompt user to choose
+4. If no interfaces are found → Report error and abort execution
 
-## 子命令
+## Subcommands
 
-| 子命令 | 用途 | 风险 |
-|--------|------|------|
-| `scan` | 扫描可用 CAN 接口与 USB-CAN 设备 | 低 |
-| `monitor` | 实时监控总线报文 | 低 |
-| `send` | 发送标准帧 / 扩展帧 / 远程帧 / CAN-FD 帧 | 高 |
-| `log` | 记录总线报文到 ASC / BLF / CSV 文件 | 低 |
-| `decode` | 用 DBC 等数据库文件解码报文或日志 | 低 |
-| `stats` | 统计总线负载、ID 分布和帧率 | 低 |
+| Subcommand | Description | Risk |
+|------------|-------------|------|
+| `scan` | Scan available CAN interfaces and USB-CAN devices | Low |
+| `monitor` | Real-time bus message monitoring | Low |
+| `send` | Transmit standard / extended / remote / CAN-FD frames | High |
+| `log` | Log bus messages to ASC / BLF / CSV files | Low |
+| `decode` | Decode messages or logs using database files (e.g. DBC) | Low |
+| `stats` | Analyze bus load, ID distribution, and frame rates | Low |
 
-## 执行流程
+## Execution Flow
 
-1. 检查 `python-can` 是否可用，未安装时提示 `pip install python-can`
-2. 按优先级解析参数：CLI > 工程级配置 > 状态文件 > 默认值
-3. 无子命令时默认执行 `scan`
-4. `monitor / send / log / stats` 使用解析后的连接参数
-5. `decode` 先确认数据库文件和输入源存在
-6. 若未指定 `interface`/`channel`，自动扫描系统 CAN 接口：
-   - 唯一候选：自动使用并写入工程配置
-   - 多候选：返回列表让用户选择
-7. 成功执行后，将确认的参数写回工程配置
-8. `send` 只要配置可连接就直接执行，不二次确认
-9. 运行对应脚本并输出结构化结果
-10. 失败时优先反馈接口、驱动、比特率和过滤条件问题
+1. Verify `python-can` is available; if not installed, prompt to run `pip install python-can`
+2. Resolve parameters according to priority: CLI > Project-level configuration > State file > Defaults
+3. Default to `scan` when no subcommand is specified
+4. `monitor / send / log / stats` use resolved connection parameters
+5. `decode` first verifies existence of database file and input source
+6. If `interface`/`channel` is not specified, auto-scan system CAN interfaces:
+   - Single candidate: Automatically use it and write to project configuration
+   - Multiple candidates: Return list for user selection
+7. After successful execution, write confirmed parameters back to project configuration
+8. `send` executes directly once connection configuration is valid, without secondary confirmation
+9. Execute corresponding script and output structured results
+10. On failure, prioritize reporting issues regarding interface, driver, bitrate, or filter conditions
 
-## 脚本调用
+## Script Invocation
 
-所有脚本位于 skill 目录的 `scripts/` 下，通过 `python` 直接调用。
-脚本会按优先级从 CLI 参数、工程级配置、状态文件中读取参数。
+All scripts reside under `scripts/` in the skill directory and are invoked directly via `python`.
+Scripts read parameters based on priority from CLI arguments, project-level configuration, and state file.
 
 ```bash
-# 扫描接口
+# Scan interfaces
 python scripts/can_scan.py [--json]
 
-# 实时监控
-python scripts/can_monitor.py [--interface <接口>] [--channel <通道>] [--bitrate <速率>] [--fd] [--filter-id <ID列表>] [--exclude-id <ID列表>] [--dbc <DBC文件>] [--timeout <秒>] [--json]
+# Real-time monitoring
+python scripts/can_monitor.py [--interface <interface>] [--channel <channel>] [--bitrate <bitrate>] [--fd] [--filter-id <id_list>] [--exclude-id <id_list>] [--dbc <dbc_file>] [--timeout <sec>] [--json]
 
-# 发送报文
-python scripts/can_send.py [--interface <接口>] [--channel <通道>] [--bitrate <速率>] <id> <data> [--extended] [--remote] [--fd] [--repeat <次>] [--interval <秒>] [--periodic <毫秒>] [--listen] [--json]
+# Message transmission
+python scripts/can_send.py [--interface <interface>] [--channel <channel>] [--bitrate <bitrate>] <id> <data> [--extended] [--remote] [--fd] [--repeat <count>] [--interval <sec>] [--periodic <ms>] [--listen] [--json]
 
-# 日志记录
-python scripts/can_log.py [--interface <接口>] [--channel <通道>] [--bitrate <速率>] [--output <文件>] [--duration <秒>] [--max-count <数量>] [--filter-id <ID列表>] [--console] [--json]
+# Data logging
+python scripts/can_log.py [--interface <interface>] [--channel <channel>] [--bitrate <bitrate>] [--output <file>] [--duration <sec>] [--max-count <count>] [--filter-id <id_list>] [--console] [--json]
 
-# 数据库解码
-python scripts/can_decode.py <db_file> [--db-format <auto|dbc|arxml|kcd|sym|cdd>] [--id <CAN_ID>] [--data <HEX数据>] [--log <日志文件>] [--signal <信号名>] [--list] [--json]
+# Database decoding
+python scripts/can_decode.py <db_file> [--db-format <auto|dbc|arxml|kcd|sym|cdd>] [--id <can_id>] [--data <hex_data>] [--log <log_file>] [--signal <signal_name>] [--list] [--json]
 
-# 总线统计
-python scripts/can_stats.py [--interface <接口>] [--channel <通道>] [--bitrate <速率>] [--duration <秒>] [--top <数量>] [--watch <ID列表>] [--json]
+# Bus statistics
+python scripts/can_stats.py [--interface <interface>] [--channel <channel>] [--bitrate <bitrate>] [--duration <sec>] [--top <count>] [--watch <id_list>] [--json]
 ```
 
-## 输出格式
+## Output Format
 
-单次命令返回标准 JSON：
+Single command returns standard JSON:
 ```json
 {
   "status": "ok",
   "action": "scan",
-  "summary": "发现 2 个 CAN 接口",
+  "summary": "Found 2 CAN interface(s)",
   "details": { ... }
 }
 ```
 
-持续命令（monitor --json、send --listen --json）输出 JSON Lines，结束摘要写入 stderr。
+Streaming commands (`monitor --json`, `send --listen --json`) output JSON Lines, with final summary written to stderr.
 
-错误输出：
+Error output:
 ```json
 {
   "status": "error",
   "action": "send",
-  "error": { "code": "interface_open_failed", "message": "无法打开指定 CAN 接口" }
+  "error": { "code": "interface_open_failed", "message": "Unable to open specified CAN interface" }
 }
 ```
 
-## 核心规则
+## Core Rules
 
-- 不自动猜测 interface、channel、bitrate，多接口时不自动选择
-- 参数解析优先级：CLI > 工程级配置 > 状态文件 > 默认值；自动扫描结果仅在未提供 CLI 参数时生效
-- 未指定 `interface`/`channel` 时自动扫描，唯一候选自动写入配置，多候选需用户选择
-- 成功执行后，确认的参数自动写回 `.embeddedskills/config.json`
-- 未明确说明用途时不主动发送任何报文
-- `--json` 输出的持续流使用 JSON Lines，摘要写 stderr 不污染数据流
-- DBC 解码失败不应导致监控中断
-- 找不到帧定义时返回明确错误，不静默吞掉
+- Do not automatically guess interface, channel, or bitrate; do not arbitrarily select when multiple interfaces exist
+- Parameter resolution priority: CLI > Project-level configuration > State file > Default values; auto-scan results apply only when no CLI parameters are provided
+- When `interface`/`channel` is unspecified, perform auto-scan: a single candidate is automatically written to configuration, while multiple candidates require user selection
+- After successful execution, confirmed parameters are automatically written back to `.embeddedskills/config.json`
+- Do not proactively send any messages without explicit intent
+- Continuous streaming with `--json` uses JSON Lines; summaries go to stderr to prevent polluting the data stream
+- DBC decoding errors should not disrupt message monitoring
+- If a frame definition is not found, return an explicit error rather than silently ignoring it
 
-## 参考
+## References
 
-- `references/common_interfaces.json`：常见 USB-CAN 设备信息
+- `references/common_interfaces.json`: Common USB-CAN device definitions

@@ -1,24 +1,27 @@
 ---
 name: probe-rs
 description: >-
-  probe-rs 下载与调试工具，用于探针发现、固件烧录、复位、内存读写、GDB Server 调试和 RTT 日志读取。
-  当用户提到 probe-rs、cargo-embed、DAP、RTT、CMSIS-DAP、ST-Link、J-Link、烧录、芯片信息、
-  连接 under reset、probe 选择器、probe-rs gdb、probe-rs attach 时自动触发，也兼容 /probe-rs 显式调用。
-  即使用户只是说"用 probe-rs 烧进去"、"看看 RTT"或"拉个 backtrace"，只要上下文明确提到 probe-rs 的功能、CLI 命令或相关术语（如 cargo-embed、RTT、probe-rs flash）时就应触发此 skill。
+  probe-rs programming and debugging tool for probe discovery, firmware flashing, reset,
+  memory read/write, GDB server debugging, and RTT log reading. Triggers automatically
+  when the user mentions probe-rs, cargo-embed, DAP, RTT, CMSIS-DAP, ST-Link, J-Link,
+  flashing, chip info, connect under reset, probe selector, probe-rs gdb, or probe-rs attach,
+  and supports explicit /probe-rs calls. Even if the user says "flash using probe-rs",
+  "check RTT", or "pull a backtrace", trigger this skill whenever the context clearly refers
+  to probe-rs features, CLI commands, or related terms.
 argument-hint: "[list|info|flash|erase|reset|read-mem|write-mem|attach|run|gdb|rtt] ..."
 ---
 
-# probe-rs 下载与调试
+# probe-rs Flashing and Debugging
 
-本 skill 提供 `probe-rs` CLI 的结构化包装，覆盖探针发现、目标信息、烧录、复位、内存读写、one-shot GDB 调试和 RTT 日志读取。
+This skill provides a structured wrapper around the `probe-rs` CLI, covering probe discovery, target information inspection, flashing, resetting, memory read/write, one-shot GDB debugging, and RTT log capture.
 
-脚本使用系统 `python3` 调用；若 `probe-rs`、`arm-none-eabi-gdb`（或 `gdb-multiarch`）已在 `PATH` 中，可自动发现，不强依赖 skill `config.json`。
+Scripts are invoked via system `python3`; if `probe-rs` and `arm-none-eabi-gdb` (or `gdb-multiarch`) are already in `PATH`, they will be discovered automatically without strictly requiring the skill's `config.json`.
 
-## 配置
+## Configuration
 
-### 环境级配置（skill/config.json）
+### Machine-Level Configuration (skill/config.json)
 
-首次使用前建议在 skill 目录下创建 `config.json`：
+Before first use, creating a `config.json` under the skill directory is recommended:
 
 ```json
 {
@@ -30,13 +33,13 @@ argument-hint: "[list|info|flash|erase|reset|read-mem|write-mem|attach|run|gdb|r
 }
 ```
 
-- `exe`：`probe-rs` 可执行文件路径或命令名
-- `gdb_exe`：`arm-none-eabi-gdb` 路径，`gdb` 子命令需要
-- `gdb_port`：默认 GDB 端口
-- `dap_port`：预留给交互式 DAP 会话
-- `operation_mode`：`1` 直接执行 / `2` 输出风险摘要但不阻塞 / `3` 执行前确认
+- `exe`: Path or command name for the `probe-rs` executable
+- `gdb_exe`: Path to `arm-none-eabi-gdb`, required for the `gdb` subcommand
+- `gdb_port`: Default GDB port
+- `dap_port`: Reserved for interactive DAP sessions
+- `operation_mode`: `1` direct execution / `2` output risk summary without blocking / `3` require confirmation before execution
 
-### 工程级配置（.embeddedskills/config.json）
+### Project-Level Configuration (.embeddedskills/config.json)
 
 ```json
 {
@@ -50,58 +53,58 @@ argument-hint: "[list|info|flash|erase|reset|read-mem|write-mem|attach|run|gdb|r
 }
 ```
 
-- `chip`：芯片型号，`probe-rs` 主后端必填
-- `protocol`：`swd` 或 `jtag`
-- `probe`：探针选择器，格式 `VID:PID[:Serial]`
-- `speed`：调试速率 kHz
-- `connect_under_reset`：连接时是否保持 reset
+- `chip`: Target chip model, mandatory for the `probe-rs` primary backend
+- `protocol`: `swd` or `jtag`
+- `probe`: Probe selector in `VID:PID[:Serial]` format
+- `speed`: Debug speed in kHz
+- `connect_under_reset`: Whether to hold reset during connection
 
-参数优先级：**CLI 参数 > 工程配置（.embeddedskills/config.json）> state.json > skill 配置（config.json）> 默认值**
+Parameter resolution priority: **CLI arguments > Project configuration (.embeddedskills/config.json) > state.json > Skill configuration (config.json) > Defaults**
 
-各层职责：skill `config.json` 提供工具路径与端口等环境级常量；`.embeddedskills/config.json` 提供芯片、协议等工程级参数；CLI 参数在单次调用中覆盖一切。
+Layer responsibilities: skill `config.json` supplies machine-level constants such as tool paths and ports; `.embeddedskills/config.json` supplies project-level parameters like chip and protocol; CLI arguments override everything for a single invocation.
 
-## 子命令
+## Subcommands
 
-| 子命令 | 用途 | 风险 |
+| Subcommand | Purpose | Risk |
 |---|---|---|
-| `list` | 枚举可用探针 | 低 |
-| `info` | 查看探针与目标信息 | 低 |
-| `flash` | 烧录固件（elf/hex/bin/uf2） | 高 |
-| `erase` | 擦除芯片非易失存储 | 高 |
-| `reset` | 复位目标芯片 | 高 |
-| `read-mem` | 读取内存 | 低 |
-| `write-mem` | 写内存 | 高 |
-| `attach` / `run` | 包装 probe-rs attach/run | 低 |
-| `gdb` | 启动 GDB Server 并执行 one-shot 调试 | 低 |
-| `rtt` | 读取 RTT 日志 | 低 |
+| `list` | Enumerate available probes | Low |
+| `info` | Inspect probe and target information | Low |
+| `flash` | Flash firmware (elf/hex/bin/uf2) | High |
+| `erase` | Erase target chip non-volatile storage | High |
+| `reset` | Reset target chip | High |
+| `read-mem` | Read target memory | Low |
+| `write-mem` | Write target memory | High |
+| `attach` / `run` | Wrap probe-rs attach/run | Low |
+| `gdb` | Start GDB server and execute one-shot debug | Low |
+| `rtt` | Read RTT logs | Low |
 
-## 典型调用
+## Typical Invocations
 
 ```bash
-# 列出探针
+# List probes
 py -3 <skill-dir>/scripts/probe_rs_exec.py list --json
 
-# 烧录 ELF
+# Flash ELF
 py -3 <skill-dir>/scripts/probe_rs_exec.py flash --chip STM32F407VGTx --file build/app.elf --json
 
-# 烧录 BIN（必须提供地址）
+# Flash BIN (address is mandatory)
 py -3 <skill-dir>/scripts/probe_rs_exec.py flash --chip STM32F407VGTx --file build/app.bin --address 0x08000000 --json
 
-# 读取内存
+# Read memory
 py -3 <skill-dir>/scripts/probe_rs_exec.py read-mem --chip STM32F407VGTx --address 0x20000000 --length 16 --width b32 --json
 
-# one-shot backtrace
+# One-shot backtrace
 py -3 <skill-dir>/scripts/probe_rs_gdb.py backtrace --chip STM32F407VGTx --elf build/app.elf --json
 
 # RTT
 py -3 <skill-dir>/scripts/probe_rs_rtt.py --chip STM32F407VGTx --json
 ```
 
-## 核心规则
+## Core Rules
 
-- 不自动猜测 `chip`，缺失时直接报错
-- 多探针场景建议显式提供 `--probe`；若未检测到任何探针，应提示用户检查 USB 连接并重试；若探针配置错误（如 VID:PID 不匹配），应报告具体错误信息并建议运行 `list` 子命令确认可用探针
-- `.bin` 烧录必须显式提供地址
-- `workflow build-debug` 只走 one-shot 诊断包装，不启动需要人工接管的长期 DAP 会话
-- Linux 下非 root 用户访问探针需要 udev 规则；`probe-rs` 官方提供 `69-probe-rs.rules`，放入 `/etc/udev/rules.d/` 后执行 `sudo udevadm control --reload` 并重新插拔探针
-- `probe-rs` 与 SEGGER 官方工具会争用同一个 J-Link 设备，两者不要同时运行；若仍依赖 J-Link 官方工具链，优先继续用现有 `jlink` skill
+- Never guess `chip`; raise an error immediately if missing.
+- In multi-probe scenarios, explicitly specifying `--probe` is recommended. If no probe is detected, prompt the user to check USB connection and retry. If probe configuration fails (e.g. VID:PID mismatch), report the specific error and suggest running `list` to inspect available probes.
+- Flashing `.bin` files requires an explicit address.
+- `workflow build-debug` only uses one-shot diagnostic wrappers and does not launch long-running DAP sessions requiring manual intervention.
+- Non-root users on Linux need udev rules to access probes; install the official `probe-rs` rules (`69-probe-rs.rules` → `/etc/udev/rules.d/`), then execute `sudo udevadm control --reload` and replug the probe.
+- `probe-rs` and official SEGGER tools contend for the same J-Link device; do not run them concurrently. If still dependent on the official J-Link toolchain, prioritize using the existing `jlink` skill.

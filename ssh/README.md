@@ -1,37 +1,37 @@
 # ssh
 
-Claude Code skill，用于 SSH 服务器与 Linux 开发板操作：OpenSSH 配置管理、远程命令、文件上传下载、跳板机和本地端口转发。
+Claude Code skill for SSH server and Linux development board operations: OpenSSH configuration management, remote commands, file uploads/downloads, jump hosts, and local port forwarding.
 
-## 功能
+## Features
 
-- 读取、查询和新增 `~/.ssh/config` 中的 `Host` 别名
-- 通过 Host 别名执行远程命令，并返回结构化 JSON
-- 通过固定只读命令探测远端系统、运行时和 GPU 概况
-- 使用 `scp` 上传和下载文件
-- 建立本地端口转发，支持访问远端服务
-- 支持 `ProxyJump` 跳板机配置
-- 首次连接可信设备时，可显式接受新主机指纹
+- Read, query, and add `Host` aliases in `~/.ssh/config`
+- Execute remote commands via Host aliases and return structured JSON
+- Probe the remote system, runtime, and GPU overview via fixed read-only commands
+- Upload and download files using `scp`
+- Establish local port forwarding to access remote services
+- Support `ProxyJump` jump host configuration
+- Explicitly accept new host keys when connecting to trusted devices for the first time
 
-## 环境要求
+## Requirements
 
-- Python 3.x（仅标准库，无额外 Python 依赖）
-- OpenSSH 客户端：`ssh`、`scp`、`ssh-keygen`
-- 可选：已配置 SSH 密钥，推荐使用 `IdentityFile`
+- Python 3.x (standard library only, no extra Python dependencies)
+- OpenSSH client: `ssh`, `scp`, `ssh-keygen`
+- Optional: Configured SSH keys, `IdentityFile` recommended
 
-多数 Linux 发行版已预装 OpenSSH 客户端；如果命令不可用，可执行 `sudo apt install openssh-client`（Debian/Ubuntu）或 `sudo dnf install openssh-clients`（Fedora/RHEL）安装。
+Most Linux distributions come with OpenSSH client pre-installed; if commands are missing, install via `sudo apt install openssh-client` (Debian/Ubuntu) or `sudo dnf install openssh-clients` (Fedora/RHEL).
 
-## 配置
+## Configuration
 
-ssh skill 不维护独立服务器数据库，唯一服务器清单是标准 OpenSSH 配置：
+The ssh skill does not maintain an independent server database; its single source of truth is the standard OpenSSH configuration:
 
 ```text
 ~/.ssh/config
 ```
 
-推荐使用 Host 别名管理设备：
+Using Host aliases to manage devices is recommended:
 
 ```ssh-config
-# description: Linux 开发板
+# description: Linux Dev Board
 # tags: embedded,linux,dev-board
 # location: lab
 Host 1380-P904
@@ -41,7 +41,7 @@ Host 1380-P904
     IdentityFile ~/.ssh/id_ed25519
 ```
 
-跳板机示例：
+Jump host example:
 
 ```ssh-config
 Host bastion
@@ -56,155 +56,160 @@ Host internal-dev
     ProxyJump bastion
 ```
 
-允许保留以下注释元数据：
+The following comment metadata fields are supported:
 
-| 字段 | 说明 |
-|------|------|
-| `description` | 设备或服务器说明 |
-| `aliases` | 用户习惯称呼，逗号分隔；可用于精确解析 |
-| `groups` | 逻辑环境或主机组，逗号分隔；允许多台主机共享 |
-| `tags` | 逗号分隔的标签 |
-| `location` | 位置或环境 |
+| Field | Description |
+|-------|-------------|
+| `description` | Device or server description |
+| `aliases` | Common names the user calls this host, comma-separated; usable for exact resolution |
+| `groups` | Logical environment or host group, comma-separated; lets multiple hosts share membership |
+| `tags` | Comma-separated tags |
+| `location` | Location or environment |
 
-不要在 `~/.ssh/config` 中写入真实密码、Token、私钥内容或其他敏感信息。
+Never write plaintext passwords, tokens, private key contents, or other sensitive information into `~/.ssh/config`.
 
-## 常用命令
+## Common Commands
 
-命令示例均以当前 skill 目录为基准。
+Command examples are based on the skill directory.
 
-### 列出服务器
+### List Servers
 
 ```bash
 python scripts/ssh_config.py list
 ```
 
-### 查找服务器
+### Search Servers
 
 ```bash
-python scripts/ssh_config.py find <关键词>
-python scripts/ssh_config.py find <环境关键词> <能力关键词>
+python scripts/ssh_config.py find <keyword>
+python scripts/ssh_config.py find <environment_keyword> <capability_keyword>
 ```
 
-多个关键词采用 AND 语义。例如，先用 `groups` 标记测试环境成员，再用
-`tags` 标记硬件能力后，`find 测试环境 4090D` 只返回同时满足两个条件的主机。
-`search` 是 `find` 的等价命令。
+Multiple keywords use AND semantics. For example, after tagging test-environment
+membership with `groups` and hardware capability with `tags`, `find test-env 4090D`
+returns only hosts that satisfy both conditions. `search` is an alias for `find`.
 
-### 确定唯一服务器
+### Resolve a Unique Server
 
 ```bash
-python scripts/ssh_config.py resolve <关键词...>
+python scripts/ssh_config.py resolve <keyword...>
 ```
 
-`resolve` 只有在结果唯一时才成功。没有匹配返回退出码 1；存在多个候选时
-返回退出码 2 和候选列表，避免 AI 在共享环境名称下擅自选择主机。OpenSSH
-`Host` 的精确别名优先于模糊匹配。
+`resolve` succeeds only when the result is unique. No match returns exit code 1;
+multiple candidates return exit code 2 with a candidate list, preventing the AI
+from picking a host on its own under ambiguous shared environment names. Exact
+OpenSSH `Host` aliases take priority over fuzzy matching.
 
-### 验证别名解析
+### Verify Alias Resolution
 
 ```bash
-python scripts/ssh_config.py show <别名>
+python scripts/ssh_config.py show <alias>
 ```
 
-### 新增服务器
+### Add Server
 
-写入前脚本会自动备份 `~/.ssh/config`：
+The script automatically backs up `~/.ssh/config` before writing:
 
 ```bash
-python scripts/ssh_config.py add <别名> --host <IP或域名> --user <用户> --port 22 --key ~/.ssh/id_ed25519
+python scripts/ssh_config.py add <alias> --host <IP_or_domain> --user <user> --port 22 --key ~/.ssh/id_ed25519
 ```
 
-常用可选参数：
+Common optional arguments:
 
 ```bash
---description "说明"
---aliases "常用名称1,常用名称2"
---groups "环境1,环境2"
+--description "Description"
+--aliases "common_name_1,common_name_2"
+--groups "env1,env2"
 --tags tag1,tag2
---location "位置"
---proxy-jump <跳板机别名>
+--location "Location"
+--proxy-jump <bastion_alias>
 ```
 
-### 执行远程命令
+### Execute Remote Command
 
 ```bash
-python scripts/ssh_exec.py <别名> "uname -a" --timeout 30
+python scripts/ssh_exec.py <alias> "uname -a" --timeout 30
 ```
 
-脚本输出 JSON，包含 `success`、`exit_code`、`stdout`、`stderr`。
+The script outputs JSON containing `success`, `exit_code`, `stdout`, and `stderr`.
 
-### 探测远端环境
+### Probe Remote Environment
 
 ```bash
-python scripts/ssh_probe.py <别名>
+python scripts/ssh_probe.py <alias>
 ```
 
-该命令只执行内置的只读探测，不接受任意远程命令。结果以 JSON 返回，包含
-操作系统、架构、内核、CPU 数量、内存、Python、Node.js、GPU 和容器环境等
-信息。连接默认使用非交互认证、禁止转发，并要求主机指纹已经可信。
-探测入口不会继承 SSH 配置中的 `ProxyCommand`；需要代理命令的目标应使用
-常规 SSH 脚本并单独确认。OpenSSH 仍会读取用户配置；如果配置包含
-`Match exec`，它可能在配置解析阶段执行本地命令，因此请只对可信配置使用。
+This command only runs the built-in read-only probes; it does not accept arbitrary
+remote commands. Results are returned as JSON containing OS, architecture, kernel,
+CPU count, memory, Python, Node.js, GPU, and container environment information.
+Connections default to non-interactive authentication, disable forwarding, and
+require the host fingerprint to already be trusted. The probe entry point does not
+inherit `ProxyCommand` from the SSH configuration; targets that require a proxy
+command should use the regular SSH scripts and be confirmed separately. OpenSSH
+still reads the user configuration; if it contains `Match exec`, that may execute
+local commands during configuration parsing, so only use the probe entry point with
+trusted configurations.
 
-执行前预览固定命令：
+Preview the fixed commands before running:
 
 ```bash
-python scripts/ssh_probe.py <别名> --dry-run
+python scripts/ssh_probe.py <alias> --dry-run
 ```
 
-### 上传文件
+### Upload File
 
 ```bash
-python scripts/ssh_transfer.py upload <别名> "<本地路径>" "<远程路径>"
+python scripts/ssh_transfer.py upload <alias> "<local_path>" "<remote_path>"
 ```
 
-### 下载文件
+### Download File
 
 ```bash
-python scripts/ssh_transfer.py download <别名> "<远程路径>" "<本地路径>"
+python scripts/ssh_transfer.py download <alias> "<remote_path>" "<local_path>"
 ```
 
-### 建立本地端口转发
+### Establish Local Port Forwarding
 
 ```bash
-python scripts/ssh_tunnel.py <别名> --local-port <本地端口> --remote-host 127.0.0.1 --remote-port <远程端口>
+python scripts/ssh_tunnel.py <alias> --local-port <local_port> --remote-host 127.0.0.1 --remote-port <remote_port>
 ```
 
-隧道命令会前台运行。需要后台长期保持时，先确认停止方式。
+Tunnel commands run in the foreground. Confirm termination method before running long-running background tasks.
 
-## 首次连接主机指纹
+## Initial Connection Host Key
 
-`ssh_exec.py`、`ssh_transfer.py`、`ssh_tunnel.py` 均支持：
+`ssh_exec.py`, `ssh_transfer.py`, and `ssh_tunnel.py` all support:
 
 ```bash
 --accept-new-host-key
---known-hosts-file <临时known_hosts路径>
+--known-hosts-file <temporary_known_hosts_path>
 ```
 
-- `--accept-new-host-key`：确认设备可信时，允许 OpenSSH 接受新的主机指纹。
-- `--known-hosts-file`：指定 `known_hosts` 文件。调试时可使用临时文件，避免污染全局 `~/.ssh/known_hosts`。
+- `--accept-new-host-key`: Allows OpenSSH to accept new host fingerprints once the device is confirmed trusted.
+- `--known-hosts-file`: Specifies a custom `known_hosts` file. Use a temporary file during debugging to avoid polluting global `~/.ssh/known_hosts`.
 
-示例：
+Example:
 
 ```bash
 python scripts/ssh_exec.py 1380-P904 "echo SSH_OK && uname -m" --accept-new-host-key
 ```
 
-## 操作边界
+## Operational Boundaries
 
-- 查询类任务可以直接执行。
-- 新增或修改 `~/.ssh/config` 前，脚本必须创建备份。
-- 删除配置、覆盖远程文件、部署、批量执行、端口转发等有风险操作，先确认。
-- 执行远程命令时优先只读检查；涉及重启、删除、覆盖、安装、升级时先确认。
-- 如果脚本失败，保留真实 stderr，不要吞掉错误。
+- Query tasks can be executed directly.
+- The script must create a backup before adding or modifying `~/.ssh/config`.
+- Confirm first before risky actions such as deleting configurations, overwriting remote files, deploying, running batch executions, or setting up port forwarding.
+- Prioritize read-only checks when executing remote commands; confirm first if operations involve rebooting, deleting, overwriting, installing, or upgrading.
+- If the script fails, preserve the actual stderr and do not swallow errors.
 
-## 故障排查
+## Troubleshooting
 
-优先检查：
+Check in order:
 
-1. `python scripts/ssh_config.py show <别名>`
-2. `ssh -G <别名>` 是否能解析 HostName/User/Port
-3. `ssh-keygen -F <HostName>` 是否已有主机指纹
-4. 密钥文件是否存在，权限是否合适
-5. `ProxyJump` 别名是否也在 `~/.ssh/config`
-6. 网络是否可达，端口是否开放
-7. 首次连接是否需要显式追加 `--accept-new-host-key`
+1. `python scripts/ssh_config.py show <alias>`
+2. Whether `ssh -G <alias>` can resolve HostName/User/Port
+3. Whether `ssh-keygen -F <HostName>` already has the host key
+4. Whether the key file exists and has appropriate permissions
+5. Whether the `ProxyJump` alias is also present in `~/.ssh/config`
+6. Whether the network is reachable and the port is open
+7. Whether `--accept-new-host-key` needs to be explicitly appended on initial connection

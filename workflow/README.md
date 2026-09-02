@@ -1,17 +1,17 @@
 # Workflow
 
-`workflow` 是一个薄编排层，只负责：
+`workflow` is a thin orchestration layer responsible solely for:
 
-- 发现当前 workspace 中的 Keil / GCC / EIDE 工程
-- 选择构建、烧录、调试、观测后端
-- 串联 `.embeddedskills/state.json`
-- 聚合底层脚本输出
+- Discovering Keil / GCC / EIDE projects in the current workspace
+- Selecting build, flash, debug, and observe backends
+- Chaining `.embeddedskills/state.json`
+- Aggregating underlying script outputs
 
-当前 `observe` 阶段会返回 `jlink:rtt`、`jlink:swo`、`openocd:semihosting`、`openocd:itm`、`probe-rs:rtt` 这几类候选观测后端。
+The current `observe` phase returns candidate observation backends: `jlink:rtt`, `jlink:swo`, `openocd:semihosting`, `openocd:itm`, and `probe-rs:rtt`.
 
-它不会重写底层构建器、烧录器或 GDB 解析逻辑。
+It does not rewrite underlying builders, flashers, or GDB parsing logic.
 
-## 命令
+## Commands
 
 ```bash
 python workflow/scripts/workflow_plan.py --json
@@ -23,13 +23,13 @@ python workflow/scripts/workflow_run.py observe --json
 python workflow/scripts/workflow_run.py diagnose --json
 ```
 
-## 配置
+## Configuration
 
-workflow 不再维护独立的工程配置结构，所有工程参数统一从 `.embeddedskills/config.json` 读取。
+workflow no longer maintains an independent project configuration structure; all project parameters are read centrally from `.embeddedskills/config.json`.
 
-### 工程级共享配置
+### Shared Project-Level Configuration
 
-在 `.embeddedskills/config.json` 中，`workflow` 段仅包含首选后端配置：
+In `.embeddedskills/config.json`, the `workflow` section contains only preferred backend configurations:
 
 ```json
 {
@@ -48,17 +48,17 @@ workflow 不再维护独立的工程配置结构，所有工程参数统一从 `
 }
 ```
 
-### 参数解析顺序
+### Parameter Resolution Order
 
-1. **CLI 参数**（如 `--build-backend=keil`）优先级最高
-2. **`.embeddedskills/config.json`** 中的 `workflow` 段配置
-3. **自动发现**（当 `preferred_*` 为 `"auto"` 时）
+1. **CLI Arguments** (e.g. `--build-backend=keil`) take highest priority
+2. **`workflow` section** in `.embeddedskills/config.json`
+3. **Auto-discovery** (when `preferred_*` is set to `"auto"`)
 
-成功执行后，实际使用的后端会自动写回 `.embeddedskills/config.json` 的 `workflow` 段，供下次使用。
+After successful execution, the practically used backend is automatically written back to the `workflow` section of `.embeddedskills/config.json` for future invocations.
 
-### 与其他 Skill 的协同
+### Coordination with Other Skills
 
-workflow 与其他 Skill 的协同只通过以下方式：
-- `.embeddedskills/config.json`：读取各 Skill 的工程配置
-- `.embeddedskills/state.json`：读取/写入运行状态
-- 子进程调用底层 Skill 脚本
+workflow coordinates with other skills exclusively via:
+- `.embeddedskills/config.json`: reading each skill's project configuration
+- `.embeddedskills/state.json`: reading and writing runtime states
+- Subprocesses invoking underlying skill scripts

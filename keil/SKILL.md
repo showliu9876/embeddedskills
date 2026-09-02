@@ -1,26 +1,29 @@
 ---
 name: keil
 description: >-
-  Keil MDK 工程构建工具，用于扫描 .uvprojx/.uvproj/.uvmpw 工程、枚举 Target、执行
-  build/rebuild/clean 并解析构建日志，返回可供 jlink/openocd 复用的产物路径。
-  flash 子命令仅作为兼容入口保留。当用户提到 Keil、MDK、uVision、UV4、
-  Target 枚举、编译、重建、清理、烧录、下载固件、flash 时自动触发，也兼容 /keil 显式调用。
-  即使用户只是说"编译一下"或"烧录到板子上"，只要上下文涉及嵌入式 Keil 工程就应触发此 skill。
+  Keil MDK project build tool for scanning .uvprojx/.uvproj/.uvmpw projects,
+  enumerating Targets, executing build/rebuild/clean, and parsing build logs to
+  return artifact paths reusable by jlink/openocd. The flash subcommand is retained
+  only as a compatibility entry point. Triggers automatically when the user
+  mentions Keil, MDK, uVision, UV4, Target enumeration, compile, rebuild, clean,
+  flash, download firmware, and also supports explicit /keil invocations. Even if
+  the user only says "compile it" or "flash to board", this skill should be
+  triggered as long as the context involves an embedded Keil project.
 argument-hint: "[scan|targets|build|rebuild|clean|flash] ..."
 ---
 
-# Keil MDK 工程构建
+# Keil MDK Project Build
 
-> **平台限制：仅 Windows。** Keil MDK 的 `UV4.exe` 没有 Linux 版本，本 skill 无法在 Linux 上运行。
-> 本仓库其余 skill 均以 Linux 为默认平台；在 Linux 上构建嵌入式工程请改用 `gcc` 或 `eide` skill。
+> **Platform Restriction: Windows Only.** There is no Linux version of Keil MDK's `UV4.exe`; this skill cannot run on Linux.
+> All other skills in this repository use Linux as their default platform; to build embedded projects on Linux, use the `gcc` or `eide` skill instead.
 
-本 skill 提供 Keil MDK 工程的发现、Target 枚举、构建、重建、清理能力，并返回可供 `jlink/openocd` 继续使用的固件产物路径。`flash` 仅作为兼容入口保留。
+This skill provides discovery of Keil MDK projects, Target enumeration, build, rebuild, and clean capabilities, returning firmware artifact paths for subsequent use by `jlink/openocd`. `flash` is retained only as a compatibility entry point.
 
-## 配置
+## Configuration
 
-### 环境级配置（skill/config.json）
+### Environment-level Configuration (skill/config.json)
 
-skill 目录下的 `config.json` 包含环境级配置，首次使用前确认 `uv4_exe` 路径正确：
+The `config.json` in the skill directory contains environment-level configuration. Confirm that `uv4_exe` is correct before first use:
 
 ```json
 {
@@ -29,12 +32,12 @@ skill 目录下的 `config.json` 包含环境级配置，首次使用前确认 `
 }
 ```
 
-- `uv4_exe`：UV4.exe 完整路径（必填）
-- `operation_mode`：`1` 直接执行 / `2` 输出风险摘要但不阻塞 / `3` 执行前确认
+- `uv4_exe`: Full path to UV4.exe (required)
+- `operation_mode`: `1` execute directly / `2` output risk summary without blocking / `3` require confirmation before execution
 
-### 工程级配置（workspace/.embeddedskills/config.json）
+### Project-level Configuration (workspace/.embeddedskills/config.json)
 
-工程级共享配置统一保存在工作区的 `.embeddedskills/config.json` 中：
+Project-level shared configuration is uniformly stored in `.embeddedskills/config.json` in the workspace:
 
 ```json
 {
@@ -46,78 +49,78 @@ skill 目录下的 `config.json` 包含环境级配置，首次使用前确认 `
 }
 ```
 
-- `project`：默认工程路径（相对 workspace），构建成功后会自动更新
-- `target`：默认 Target 名称，构建成功后会自动更新
-- `log_dir`：构建日志输出目录，默认 `.embeddedskills/build`
+- `project`: Default project path (relative to workspace), automatically updated after successful build
+- `target`: Default Target name, automatically updated after successful build
+- `log_dir`: Build log output directory, defaults to `.embeddedskills/build`
 
-### 参数解析优先级
+### Parameter Resolution Precedence
 
-参数解析顺序（从高到低）：
-1. CLI 显式参数
-2. 环境级配置（skill/config.json）
-3. 工程级配置（.embeddedskills/config.json）
-4. `.embeddedskills/state.json`（上次构建记录）
-5. 搜索/询问
+Parameter resolution order (from highest to lowest):
+1. CLI explicit arguments
+2. Environment-level configuration (skill/config.json)
+3. Project-level configuration (.embeddedskills/config.json)
+4. `.embeddedskills/state.json` (last build record)
+5. Search / Prompt user
 
-## 子命令
+## Subcommands
 
-| 子命令 | 用途 | 风险 |
-|--------|------|------|
-| `scan` | 搜索当前目录下的 .uvprojx/.uvproj/.uvmpw 工程 | 低 |
-| `targets` | 枚举工程中的 Target | 低 |
-| `build` | 增量编译 | 中 |
-| `rebuild` | 全量重建 | 中 |
-| `clean` | 清理工程 | 高 |
-| `flash` | 通过 Keil 烧录固件（兼容入口，优先建议使用 jlink/openocd） | 高 |
+| Subcommand | Description | Risk |
+|---|---|---|
+| `scan` | Search for .uvprojx/.uvproj/.uvmpw projects in current directory | Low |
+| `targets` | Enumerate Targets in project | Low |
+| `build` | Incremental build | Medium |
+| `rebuild` | Full rebuild | Medium |
+| `clean` | Clean project | High |
+| `flash` | Flash firmware via Keil (compatibility entry point, jlink/openocd preferred) | High |
 
-## 执行流程
+## Execution Workflow
 
-1. 读取 `config.json`，确认 `uv4_exe` 路径有效
-2. 未指定子命令时默认执行 `scan`
-3. 未提供工程路径时先执行 `scan` 搜索工程
-4. 同时发现多个工程或多个 Target 时，列出选项让用户选择，绝不自动猜测
-5. `build/rebuild/clean` 按 `operation_mode` 决定是否需要确认
-6. `build/rebuild` 成功后，尽量从工程配置中解析 `flash_file` / `debug_file` 等产物路径
-7. `flash` 仅在最近一次构建成功时允许执行
-8. 所有构建命令输出到日志文件后解析，返回结构化结果
+1. Read `config.json` and verify `uv4_exe` path is valid
+2. When no subcommand is specified, default to `scan`
+3. When no project path is provided, run `scan` first to discover projects
+4. When multiple projects or Targets are found, list options for user selection; never guess automatically
+5. `build/rebuild/clean` determine whether confirmation is needed according to `operation_mode`
+6. Upon successful `build/rebuild`, resolve artifact paths such as `flash_file` / `debug_file` from project configuration whenever possible
+7. `flash` is only permitted when the most recent build succeeded
+8. All build commands output to log files and are parsed to return structured results
 
-## 脚本调用
+## Script Invocations
 
-skill 目录下有两个 Python 脚本，使用标准库实现，无额外依赖。
+The skill directory contains two Python scripts implemented using the standard library with no extra dependencies.
 
-### keil_project.py — 工程扫描与 Target 枚举
+### keil_project.py — Project Scanning and Target Enumeration
 
 ```bash
-# 扫描工程
-python <skill-dir>/scripts/keil_project.py scan --root <搜索目录> --json
+# Scan projects
+python <skill-dir>/scripts/keil_project.py scan --root <search_directory> --json
 
-# 枚举 Target
-python <skill-dir>/scripts/keil_project.py targets --project <工程路径> --json
+# Enumerate Targets
+python <skill-dir>/scripts/keil_project.py targets --project <project_path> --json
 ```
 
-### keil_build.py — 构建 / 重建 / 清理 / 烧录
+### keil_build.py — Build / Rebuild / Clean / Flash
 
 ```bash
 python <skill-dir>/scripts/keil_build.py <build|rebuild|clean|flash> \
-  --uv4 <UV4路径> \
-  --project <工程路径> \
+  --uv4 <UV4_path> \
+  --project <project_path> \
   --target <TargetName> \
-  --log-dir <日志目录> \
+  --log-dir <log_directory> \
   --json
 ```
 
-`rebuild` 额外支持 `--clean-first` 使用 `-cr` 而非 `-r`。
+`rebuild` additionally supports `--clean-first` to use `-cr` instead of `-r`.
 
-## 输出格式
+## Output Format
 
-所有脚本以 JSON 格式返回，基础字段为 `status`（ok/error）、`action`、`summary`、`details`，并可能附带 `context`、`artifacts`、`metrics`、`state`、`next_actions`、`timing`。
+All scripts return results in JSON format with base fields `status` (ok/error), `action`, `summary`, `details`, and optionally `context`, `artifacts`, `metrics`, `state`, `next_actions`, `timing`.
 
-成功示例：
+Success example:
 ```json
 {
   "status": "ok",
   "action": "build",
-  "summary": "build 成功，errors=0 warnings=2",
+  "summary": "build succeeded, errors=0 warnings=2",
   "details": {
     "project": "project.uvprojx",
     "target": "Debug",
@@ -129,27 +132,27 @@ python <skill-dir>/scripts/keil_build.py <build|rebuild|clean|flash> \
 }
 ```
 
-错误示例：
+Error example:
 ```json
 {
   "status": "error",
   "action": "flash",
-  "error": { "code": "build_not_clean", "message": "最近一次构建存在错误，禁止继续烧录" }
+  "error": { "code": "build_not_clean", "message": "Last build contained errors; flashing is prohibited" }
 }
 ```
 
-## 核心规则
+## Core Rules
 
-- 不修改工程配置文件（.uvprojx / .uvproj / .uvmpw / .uvoptx）
-- `.uvproj`（旧版 MDK4 工程）与 `.uvprojx` 共用同一套 XML 结构（Target/TargetOption/TargetCommonOption），产物解析、Target 枚举、扫描均已支持两种后缀
-- 不自动猜测工程路径或 Target，有歧义时必须询问用户
-- 参数解析优先级详见上方"参数解析优先级"章节
-- 构建成功后优先使用返回的 `flash_file` / `debug_file` 与 `jlink/openocd` 串联
-- `flash` 前必须确认最近一次构建成功（errors == 0）
-- `clean` 不在自动流程中隐式执行
-- 构建失败时优先展示首个错误和日志文件路径
-- 结果回显中始终包含工程名、Target 名、日志路径；若识别到产物路径也要回显
+- Do not modify project configuration files (.uvprojx / .uvproj / .uvmpw / .uvoptx)
+- `.uvproj` (legacy MDK4 projects) shares the same XML structure (Target/TargetOption/TargetCommonOption) with `.uvprojx`; artifact parsing, Target enumeration, and scanning support both extensions
+- Do not automatically guess project paths or Targets; prompt user when ambiguous
+- Refer to the "Parameter Resolution Precedence" section above for parameter precedence
+- After a successful build, prioritize passing returned `flash_file` / `debug_file` to `jlink/openocd`
+- Before `flash`, must confirm the most recent build succeeded (errors == 0)
+- `clean` is never executed implicitly in automated workflows
+- On build failure, prioritize displaying the first error and log file path
+- Result echo must always include project name, Target name, and log path; echo artifact paths when detected
 
-## 参考
+## References
 
-遇到编译器相关问题时可查阅 `references/compiler-notes.md`。
+Refer to `references/compiler-notes.md` when encountering compiler-related issues.

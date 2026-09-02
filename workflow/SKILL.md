@@ -1,21 +1,21 @@
 ---
 name: workflow
 description: >-
-  embeddedskills 的薄编排层，用于在当前 workspace 中发现工程、选择 build/flash/debug/observe
-  后端、串联 .embeddedskills/state.json，并聚合底层 skill 的结果。
-  当用户明确输入以下命令之一："一键构建烧录"、"自动诊断"、"串起 build -> flash -> debug -> observe" 或显式调用 /workflow 时触发。
+  Thin orchestration layer for embeddedskills to discover projects in the current workspace, select build/flash/debug/observe
+  backends, chain .embeddedskills/state.json, and aggregate underlying skill results.
+  Trigger when the user mentions one-click build and flash, automated diagnosis, chaining build -> flash -> debug -> observe, or explicitly calls /workflow.
 argument-hint: "[plan|build|build-flash|build-debug|observe|diagnose] ..."
 ---
 
-# Workflow 编排层
+# Workflow Orchestration Layer
 
-本 skill 不重复实现底层逻辑，只做发现、选择、串联和聚合。
+This skill does not re-implement underlying logic; it only handles discovery, selection, chaining, and aggregation.
 
-支持 **Keil** / **GCC** / **EIDE** 三种构建后端，以及 **jlink** / **openocd** / **probe-rs** 三种 flash/debug/observe 后端。
+Supports three build backends: **Keil** / **GCC** / **EIDE**, and three flash/debug/observe backends: **jlink** / **openocd** / **probe-rs**.
 
-`observe` 阶段当前会给出 `jlink:rtt`、`jlink:swo`、`openocd:semihosting`、`openocd:itm`、`probe-rs:rtt` 这几类候选观测后端。
+The `observe` phase currently provides candidate observation backends: `jlink:rtt`, `jlink:swo`, `openocd:semihosting`, `openocd:itm`, and `probe-rs:rtt`.
 
-## 命令
+## Commands
 
 ```bash
 python <skill-dir>/scripts/workflow_plan.py --json
@@ -27,13 +27,13 @@ python <skill-dir>/scripts/workflow_run.py observe --json
 python <skill-dir>/scripts/workflow_run.py diagnose --json
 ```
 
-## 配置说明
+## Configuration
 
-workflow 不再维护独立的工程配置结构，所有工程参数统一从 `.embeddedskills/config.json` 读取。
+workflow no longer maintains an independent project configuration structure; all project parameters are read centrally from `.embeddedskills/config.json`.
 
-### 配置结构
+### Configuration Structure
 
-`.embeddedskills/config.json` 中的 `workflow` 段仅包含首选后端配置：
+The `workflow` section in `.embeddedskills/config.json` contains only preferred backend configurations:
 
 ```json
 {
@@ -46,34 +46,34 @@ workflow 不再维护独立的工程配置结构，所有工程参数统一从 `
 }
 ```
 
-workflow 通过读取 `.embeddedskills/config.json` 中其他 skill 的配置段来获取工程参数（如 `keil.project`、`eide.project`、`eide.config`、`jlink.device`、`probe-rs.chip` 等）。
+workflow retrieves project parameters (e.g. `keil.project`, `eide.project`, `eide.config`, `jlink.device`, `probe-rs.chip`, etc.) by reading configuration sections of other skills in `.embeddedskills/config.json`.
 
-### 参数解析顺序
+### Parameter Resolution Order
 
-按以下决策树依次判断，命中即停止：
+Evaluated in order according to the following decision tree, stopping upon first match:
 
-1. **CLI 参数**（优先级最高）
-   - 条件：用户在命令行传入 `--build-backend`、`--flash-backend` 等参数
-   - 示例：`workflow_run.py build-flash --build-backend=keil --flash-backend=jlink`
-   - `--build-backend` 可选值：`auto` / `keil` / `gcc` / `eide`
-   - 行为：直接使用该参数指定的后端，跳过后续步骤
+1. **CLI Arguments** (Highest priority)
+   - Condition: User passes parameters like `--build-backend`, `--flash-backend` on the command line
+   - Example: `workflow_run.py build-flash --build-backend=keil --flash-backend=jlink`
+   - Allowed `--build-backend` values: `auto` / `keil` / `gcc` / `eide`
+   - Behavior: Uses the specified backend directly, skipping subsequent steps
 
-2. **配置文件**（次优先）
-   - 条件：CLI 未指定，且 `.embeddedskills/config.json` 的 `workflow` 段中对应 `preferred_*` 字段不为 `"auto"`
-   - 示例：`"preferred_build": "keil"` → 使用 keil 作为构建后端
-   - 行为：读取配置值并使用，跳过自动发现
+2. **Configuration File** (Secondary priority)
+   - Condition: Not specified via CLI, and the corresponding `preferred_*` field in the `workflow` section of `.embeddedskills/config.json` is not `"auto"`
+   - Example: `"preferred_build": "keil"` → Uses keil as build backend
+   - Behavior: Reads and uses the configured value, skipping auto-discovery
 
-3. **自动发现**（兜底）
-   - 条件：CLI 未指定，且配置中 `preferred_*` 为 `"auto"` 或字段缺失
-   - 示例：`"preferred_flash": "auto"` → 扫描 workspace 自动推断可用 flash 后端
-   - 行为：枚举候选后端列表；若唯一则直接使用，若多个则返回列表请用户确认
+3. **Auto Discovery** (Fallback)
+   - Condition: Not specified via CLI, and `preferred_*` in configuration is `"auto"` or missing
+   - Example: `"preferred_flash": "auto"` → Scans workspace to infer available flash backends
+   - Behavior: Enumerates candidate backend list; uses directly if unique, or returns candidate list for user confirmation if multiple
 
-成功执行后，实际使用的后端会自动写回 `.embeddedskills/config.json` 的 `workflow` 段。
+After successful execution, the practically used backend is automatically written back to the `workflow` section of `.embeddedskills/config.json`.
 
-## 规则
+## Rules
 
-- 发现多个工程或多个候选后端时，只返回候选列表，不自动猜测
-- 构建、烧录、调试、观测之间优先通过 `.embeddedskills/state.json` 串联
-- `observe` 只生成推荐命令，不在 workflow 内直接长时间占用观测通道
-- 失败时优先返回哪个阶段失败，以及底层脚本的结构化错误
-- workflow 与其他 Skill 的协同只通过 `.embeddedskills/config.json`、`.embeddedskills/state.json` 和子进程调用底层 Skill
+- If multiple projects or multiple candidate backends are discovered, return the candidate list without guessing
+- Build, flash, debug, and observe stages chain primarily via `.embeddedskills/state.json`
+- `observe` only generates recommended commands and does not hold observation channels open long-term within workflow
+- On failure, report which stage failed along with structured errors from underlying scripts
+- Workflow inter-skill coordination operates exclusively via `.embeddedskills/config.json`, `.embeddedskills/state.json`, and invoking underlying skill scripts as subprocesses

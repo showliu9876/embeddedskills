@@ -1,29 +1,29 @@
 # keil
 
-Claude Code skill，驱动 Keil MDK 进行工程扫描、Target 枚举、编译构建，并返回可交给 `jlink/openocd` 的产物路径。`flash` 保留为兼容入口。
+Claude Code skill for driving Keil MDK to scan projects, enumerate Targets, compile and build, and return artifact paths to hand over to `jlink/openocd`. `flash` is retained as a compatibility entry point.
 
-## 功能
+## Features
 
-- 扫描目录下的 .uvprojx / .uvproj / .uvmpw 工程文件
-- 枚举工程中的 Target
-- 增量编译 / 全量重建 / 清理
-- 返回 `flash_file` / `debug_file` 等产物路径，便于继续交给 `jlink/openocd`
-- 通过 Keil 下载固件到目标板（兼容入口）
-- 解析构建日志，输出结构化错误/警告信息
+- Scan directories for .uvprojx / .uvproj / .uvmpw project files
+- Enumerate Targets in projects
+- Incremental build / Full rebuild / Clean
+- Return artifact paths such as `flash_file` / `debug_file` for seamless handover to `jlink/openocd`
+- Download firmware to target board via Keil (compatibility entry point)
+- Parse build logs and output structured error/warning information
 
-## 环境要求
+## Requirements
 
-> **平台限制：仅 Windows。** `UV4.exe` 没有 Linux 版本，本 skill 无法在 Linux 上运行。
-> 本仓库其余 skill 均以 Linux 为默认平台；在 Linux 上构建嵌入式工程请改用 `gcc` 或 `eide` skill。
+> **Platform Restriction: Windows Only.** There is no Linux version of `UV4.exe`; this skill cannot run on Linux.
+> All other skills in this repository use Linux as their default platform; to build embedded projects on Linux, use the `gcc` or `eide` skill instead.
 
-- [Keil MDK](https://www.keil.com/mdk5/) — 提供 UV4.exe
-- Python 3.x（仅标准库，无额外依赖）
+- [Keil MDK](https://www.keil.com/mdk5/) — Provides UV4.exe
+- Python 3.x (standard library only, no extra dependencies)
 
-## 配置
+## Configuration
 
-### 环境级配置（skill/config.json）
+### Environment-level Configuration (skill/config.json)
 
-复制 `config.example.json` 为 `config.json`，根据实际安装路径修改：
+Copy `config.example.json` to `config.json` and adjust according to the actual installation path:
 
 ```json
 {
@@ -32,14 +32,14 @@ Claude Code skill，驱动 Keil MDK 进行工程扫描、Target 枚举、编译�
 }
 ```
 
-| 字段 | 必填 | 说明 |
-|------|------|------|
-| `uv4_exe` | 是 | UV4.exe 完整路径 |
-| `operation_mode` | 否 | `1` 直接执行 / `2` 输出风险摘要 / `3` 执行前确认 |
+| Field | Required | Description |
+|---|---|---|
+| `uv4_exe` | Yes | Full path to UV4.exe |
+| `operation_mode` | No | `1` execute directly / `2` output risk summary / `3` require confirmation before execution |
 
-### 工程级配置（workspace/.embeddedskills/config.json）
+### Project-level Configuration (workspace/.embeddedskills/config.json)
 
-工程级共享配置保存在工作区的 `.embeddedskills/config.json` 中：
+Project-level shared configuration is stored in `.embeddedskills/config.json` within the workspace:
 
 ```json
 {
@@ -51,17 +51,17 @@ Claude Code skill，驱动 Keil MDK 进行工程扫描、Target 枚举、编译�
 }
 ```
 
-| 字段 | 说明 |
-|------|------|
-| `project` | 默认工程路径（相对 workspace） |
-| `target` | 默认 Target 名称 |
-| `log_dir` | 构建日志输出目录，默认 `.embeddedskills/build` |
+| Field | Description |
+|---|---|
+| `project` | Default project path (relative to workspace) |
+| `target` | Default Target name |
+| `log_dir` | Build log output directory, defaults to `.embeddedskills/build` |
 
-### 参数解析优先级
+### Parameter Resolution Precedence
 
-参数解析顺序（从高到低）：
-1. CLI 显式参数
-2. 环境级配置（skill/config.json）
-3. 工程级配置（.embeddedskills/config.json）
-4. state.json（上次构建记录）
-5. 搜索/询问
+Parameter resolution order (from highest to lowest):
+1. CLI explicit arguments
+2. Environment-level configuration (skill/config.json)
+3. Project-level configuration (.embeddedskills/config.json)
+4. state.json (last build record)
+5. Search / Prompt user

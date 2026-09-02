@@ -1,24 +1,24 @@
-# OpenOCD 常见 Board / Interface / Target 配置速查表
+# OpenOCD Common Board / Interface / Target Configuration Quick Reference
 
-OpenOCD 通过 `.cfg` 配置文件组合来描述调试链路。优先使用 `board` 配置（已包含 interface 和 target），否则手动组合 `interface + target`。
+OpenOCD describes the debug chain through combinations of `.cfg` configuration files. Prefer using `board` configurations (which already include interface and target); otherwise, manually combine `interface + target`.
 
-## Interface（调试器）
+## Interface (Debug Adapters)
 
-| 调试器类型 | 配置文件 |
-|-----------|---------|
+| Debugger Type | Configuration File |
+|---------------|-------------------|
 | ST-Link V2 | `interface/stlink.cfg` |
 | ST-Link V3 | `interface/stlink.cfg` |
 | CMSIS-DAP | `interface/cmsis-dap.cfg` |
 | DAPLink | `interface/cmsis-dap.cfg` |
 | J-Link | `interface/jlink.cfg` |
-| FTDI 系列 | `interface/ftdi/minimodule.cfg` 等 |
+| FTDI Series | `interface/ftdi/minimodule.cfg`, etc. |
 
-## Target（目标芯片）
+## Target (Target MCUs / SoCs)
 
 ### STMicroelectronics
 
-| 系列 | 配置文件 |
-|------|---------|
+| Family | Configuration File |
+|--------|-------------------|
 | STM32F0 | `target/stm32f0x.cfg` |
 | STM32F1 | `target/stm32f1x.cfg` |
 | STM32F2 | `target/stm32f2x.cfg` |
@@ -37,42 +37,42 @@ OpenOCD 通过 `.cfg` 配置文件组合来描述调试链路。优先使用 `bo
 
 ### GigaDevice
 
-| 系列 | 配置文件 |
-|------|---------|
-| GD32F1x3 | `target/stm32f1x.cfg`（兼容） |
-| GD32F3x0 | `target/stm32f1x.cfg`（兼容） |
-| GD32F4xx | `target/stm32f4x.cfg`（兼容） |
-| GD32E103 | `target/stm32f1x.cfg`（兼容） |
+| Family | Configuration File |
+|--------|-------------------|
+| GD32F1x3 | `target/stm32f1x.cfg` (compatible) |
+| GD32F3x0 | `target/stm32f1x.cfg` (compatible) |
+| GD32F4xx | `target/stm32f4x.cfg` (compatible) |
+| GD32E103 | `target/stm32f1x.cfg` (compatible) |
 
-> GigaDevice 芯片通常兼容对应 STM32 系列的 target 配置。
+> GigaDevice MCUs are typically compatible with the corresponding STM32 family target configurations.
 
 ### Nordic Semiconductor
 
-| 系列 | 配置文件 |
-|------|---------|
+| Family | Configuration File |
+|--------|-------------------|
 | nRF51 | `target/nrf51.cfg` |
 | nRF52 | `target/nrf52.cfg` |
 
 ### NXP
 
-| 系列 | 配置文件 |
-|------|---------|
+| Family | Configuration File |
+|--------|-------------------|
 | LPC1768 | `target/lpc1768.cfg` |
 | LPC4088 | `target/lpc4088.cfg` |
 
 ### ESP32
 
-| 系列 | 配置文件 |
-|------|---------|
+| Family | Configuration File |
+|--------|-------------------|
 | ESP32 | `target/esp32.cfg` |
 | ESP32-S2 | `target/esp32s2.cfg` |
 | ESP32-S3 | `target/esp32s3.cfg` |
 | ESP32-C3 | `target/esp32c3.cfg` |
 
-## Board（开发板，已包含 interface + target）
+## Board (Development Boards, includes interface + target)
 
-| 开发板 | 配置文件 |
-|--------|---------|
+| Board | Configuration File |
+|-------|-------------------|
 | STM32F4 Discovery | `board/stm32f4discovery.cfg` |
 | STM32F429 Discovery | `board/stm32f429disc1.cfg` |
 | STM32F746 Discovery | `board/stm32f746g-disco.cfg` |
@@ -80,10 +80,10 @@ OpenOCD 通过 `.cfg` 配置文件组合来描述调试链路。优先使用 `bo
 | STM32 Nucleo-L476RG | `board/st_nucleo_l476rg.cfg` |
 | nRF52-DK | `board/nordic_nrf52_dk.cfg` |
 
-## 查找完整列表
+## Finding Full List
 
-如果上表未包含目标配置，可通过以下方式查找：
+If your target is not listed above, find it via:
 
-1. 列出 OpenOCD 自带配置：`ls <openocd-scripts-dir>/target/`
-2. 在 OpenOCD 官方文档搜索: https://openocd.org/doc-release/html/index.html
-3. 运行 `openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c "init; targets; shutdown"` 验证组合
+1. Listing OpenOCD built-in configurations: `ls <openocd-scripts-dir>/target/`
+2. Searching official OpenOCD documentation: https://openocd.org/doc-release/html/index.html
+3. Testing combinations by running: `openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c "init; targets; shutdown"`

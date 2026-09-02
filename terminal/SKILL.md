@@ -1,92 +1,92 @@
 ---
 name: terminal
-description: 双向交互终端会话工具，用于串口终端、SSH 交互 Shell、本地 Shell、设备控制台、AT/CLI 菜单、需要保持上下文的交互式调试；当用户提到交互终端、串口终端、SSH 终端、打开 shell、发送命令后继续读输出、保持会话、登录后操作、菜单式命令行时触发，也兼容 /terminal 显式调用。
+description: Bidirectional interactive terminal session tool for serial terminals, interactive SSH shells, local shells, device consoles, AT/CLI menus, and interactive debugging requiring persistent context. Trigger when the user mentions interactive terminals, serial terminals, SSH terminals, opening a shell, sending commands and reading output continuously, keeping sessions, post-login operations, or menu-driven command lines; also compatible with explicit /terminal calls.
 ---
 
-# Terminal — 双向交互终端会话
+# Terminal — Bidirectional Interactive Terminal Sessions
 
-统一封装串口、SSH 和本地 Shell 的双向交互会话。它补齐 `serial` 的“监控/发送是分离命令”和 `ssh` 的“远程命令多为一次性执行”之间的空白：当目标需要保持登录状态、菜单状态、REPL 状态或设备 CLI 上下文时，使用本 skill。
+Unified bidirectional interactive session wrapper for serial ports, SSH, and local shells. It bridges the gap between `serial` (where monitoring and sending are separate commands) and `ssh` (where remote commands are mostly one-shot executions): use this skill when the target requires maintaining login state, menu state, REPL state, or device CLI context.
 
-## 定位
+## Positioning
 
-- `serial`：扫描、监控、单次发送、日志、Hex 查看。
-- `ssh`：OpenSSH 配置、远程命令、传输、隧道。
-- `terminal`：保持一个可持续读写的交互式会话，并通过 `send/read` 驱动下一步判断。
+- `serial`: Scanning, monitoring, one-shot sending, logging, Hex viewing.
+- `ssh`: OpenSSH configuration, remote commands, transfers, tunnels.
+- `terminal`: Maintain a continuously readable and writable interactive session, driving subsequent decisions via `send/read`.
 
-## 配置
+## Configuration
 
-### 环境级配置 (`config.json`)
+### Environment Configuration (`config.json`)
 
-terminal skill 的环境级配置目前为空对象 `{}`。交互终端的关键参数通常和具体会话绑定，优先通过 `start` 命令显式传入，避免误连设备或误用凭据。
+The environment-level configuration for the terminal skill is currently an empty object `{}`. Key parameters for interactive terminals are typically tied to specific sessions and should preferably be passed explicitly via the `start` command to avoid misconnecting devices or misusing credentials.
 
-### 会话状态 (`.embeddedskills/state.json`)
+### Session State (`.embeddedskills/state.json`)
 
-后台会话运行时状态保存到工作区的 `.embeddedskills/state.json`，使用 `terminal_sessions` 字段记录会话名、后端、PID、TCP 控制端口和日志路径。
+Runtime state for background sessions is saved to `.embeddedskills/state.json` in the workspace, using the `terminal_sessions` field to record session name, backend, PID, TCP control port, and log path.
 
-### 参数优先级
+### Parameter Precedence
 
-1. **CLI 参数** (`--port`, `--baudrate`, `--host`, `--name` 等) - 最高优先级
-2. **会话状态** (`.embeddedskills/state.json` 中已启动的 `terminal_sessions`)
-3. **默认值** - 最低优先级
+1. **CLI Arguments** (`--port`, `--baudrate`, `--host`, `--name`, etc.) - Highest priority
+2. **Session State** (already started `terminal_sessions` in `.embeddedskills/state.json`)
+3. **Defaults** - Lowest priority
 
-## 子命令
+## Subcommands
 
-| 子命令 | 用途 | 风险 |
-|--------|------|------|
-| `start` | 启动一个后台交互会话 | 中 |
-| `list` | 列出现有会话 | 低 |
-| `status` | 查询单个会话状态 | 低 |
-| `send` | 向会话写入文本或 Hex 数据 | 中 |
-| `read` | 读取并清空会话输出缓冲 | 低 |
-| `attach` | 前台行模式接入会话 | 中 |
-| `stop` | 停止会话并清理状态 | 中 |
+| Subcommand | Description | Risk |
+|------------|-------------|------|
+| `start` | Start a background interactive session | Medium |
+| `list` | List existing sessions | Low |
+| `status` | Query the status of a single session | Low |
+| `send` | Send text or Hex data to a session | Medium |
+| `read` | Read and drain the session output buffer | Low |
+| `attach` | Attach to session in foreground line mode | Medium |
+| `stop` | Stop session and clean up state | Medium |
 
-## 后端
+## Backends
 
-| 后端 | 适用场景 | 依赖 |
-|------|----------|------|
-| `serial` | MCU UART 控制台、AT 命令、Bootloader 菜单、板卡 CLI | `pyserial` |
-| `ssh` | Linux 开发板交互 Shell、登录后持续操作 | OpenSSH 客户端 |
-| `local` | 本机临时 Shell、REPL、CLI 程序交互 | Python 标准库 |
+| Backend | Use Case | Dependencies |
+|---------|----------|--------------|
+| `serial` | MCU UART console, AT commands, Bootloader menu, board CLI | `pyserial` |
+| `ssh` | Linux dev board interactive shell, continuous post-login operations | OpenSSH client |
+| `local` | Local temporary shell, REPL, interactive CLI programs | Python standard library |
 
-## 脚本调用
+## Script Invocation
 
-所有脚本位于 skill 目录的 `scripts/` 下，通过 `python` 直接调用。命令示例均以当前 skill 目录为基准。
+All scripts are located under `scripts/` in the skill directory and invoked directly via `python`. Command examples are based on the skill directory.
 
 ```bash
-# 启动串口终端
+# Start serial terminal
 python scripts/terminal_session.py start serial --port /dev/ttyUSB0 --baudrate 115200 --name board
 
-# 启动 SSH 终端，host 使用 ~/.ssh/config 中的 Host 别名
+# Start SSH terminal, host uses the Host alias in ~/.ssh/config
 python scripts/terminal_session.py start ssh --host 1380-P904 --name devboard
 
-# 启动本地 Shell
+# Start local shell
 python scripts/terminal_session.py start local --name local-shell
 
-# 发送一行命令并追加 CRLF
+# Send a line of command and append CRLF
 python scripts/terminal_session.py send board "help" --crlf
 
-# 读取输出，最多等待 1 秒
+# Read output, waiting up to 1 second
 python scripts/terminal_session.py read board --timeout 1
 
-# 前台行模式接入
+# Attach in foreground line mode
 python scripts/terminal_session.py attach board
 
-# 查询与停止
+# Query and stop
 python scripts/terminal_session.py list
 python scripts/terminal_session.py status board
 python scripts/terminal_session.py stop board
 ```
 
-## 会话状态详情
+## Session State Details
 
-会话元数据保存到工作区：
+Session metadata is saved to the workspace:
 
 ```text
 .embeddedskills/state.json
 ```
 
-使用 `terminal_sessions` 字段记录：
+Recorded under the `terminal_sessions` field:
 
 ```json
 {
@@ -101,21 +101,21 @@ python scripts/terminal_session.py stop board
 }
 ```
 
-后台进程日志保存到：
+Background process logs are saved to:
 
 ```text
 .embeddedskills/logs/terminal/
 ```
 
-## 输出格式
+## Output Format
 
-脚本默认输出 JSON：
+The script outputs JSON by default:
 
 ```json
 {
   "status": "ok",
   "action": "read",
-  "summary": "读取 42 字节",
+  "summary": "read 42 bytes",
   "details": {
     "session": "board",
     "text": "help\r\n..."
@@ -123,7 +123,7 @@ python scripts/terminal_session.py stop board
 }
 ```
 
-错误输出：
+Error output:
 
 ```json
 {
@@ -131,26 +131,26 @@ python scripts/terminal_session.py stop board
   "action": "send",
   "error": {
     "code": "session_unreachable",
-    "message": "会话不可达，可能已退出"
+    "message": "session unreachable, may have exited"
   }
 }
 ```
 
-## 操作流程
+## Workflow
 
-1. 判断是否真的需要保持交互状态；若只是一次性远程命令，优先使用 `ssh`；若只是串口抓日志，优先使用 `serial`。
-2. 选择后端：串口控制台用 `serial`，远程 shell 用 `ssh`，本机交互程序用 `local`。
-3. `start` 后先 `read --timeout 1` 获取启动横幅、登录提示或 shell prompt。
-4. 每次 `send` 后都用 `read --timeout <秒>` 观察反馈，再决定下一步。
-5. 完成后执行 `stop`，避免后台进程长期占用串口、SSH 连接或本地 Shell。
+1. Determine whether maintaining an interactive state is truly necessary; for one-shot remote commands, prefer `ssh`; for serial log capture only, prefer `serial`.
+2. Choose backend: `serial` for serial consoles, `ssh` for remote shells, `local` for local interactive programs.
+3. Run `read --timeout 1` after `start` to capture startup banners, login prompts, or shell prompts.
+4. Run `read --timeout <seconds>` after every `send` to observe feedback before deciding the next step.
+5. Execute `stop` upon completion to avoid background processes occupying serial ports, SSH connections, or local shells indefinitely.
 
-## 核心规则
+## Core Rules
 
-- 不自动猜测串口端口、波特率、SSH Host 或登录凭据。
-- 未明确用途时不主动发送任何会改变设备状态的命令。
-- 多个会话必须使用不同 `--name`，避免输出混淆。
-- `read` 会清空当前输出缓冲；重要输出需要及时记录到最终回复。
-- `attach` 是行模式，不等同于完整 TTY/raw 模式；需要全屏程序、vim、top、交互式密码输入时，优先让用户使用真实终端工具。
-- 串口会话会独占真实串口；如果需要和外部串口工具共享端口，先使用 `serial` skill 的 mux 能力。
-- SSH 后端使用 `~/.ssh/config` 的 Host 别名；配置主机、跳板机、传输文件仍交给 `ssh` skill。
-- 失败时保留真实错误：端口占用、缺少 `pyserial`、`ssh` 不存在、Host 别名无法解析、进程已退出等都不要吞掉。
+- Do not guess serial ports, baud rates, SSH hosts, or credentials.
+- Do not proactively execute commands that change device states without clear intent.
+- Multiple sessions must use distinct `--name` values to prevent output confusion.
+- `read` drains the current output buffer; record important output into the final response promptly.
+- `attach` is line-mode and not equivalent to full TTY/raw mode; for full-screen programs, vim, top, or interactive password prompts, recommend users use native terminal tools.
+- Serial sessions hold an exclusive lock on the physical serial port; if sharing is needed with external tools, use the mux capability in `serial` skill first.
+- The SSH backend uses Host aliases from `~/.ssh/config`; host configuration, jump hosts, and file transfers should still be delegated to the `ssh` skill.
+- Preserve real errors on failure: do not swallow port conflicts, missing `pyserial`, missing `ssh`, unresolvable Host aliases, or exited processes.

@@ -1,29 +1,29 @@
 # can
 
-Claude Code skill，用于嵌入式 CAN / CAN-FD 总线调试：接口扫描、实时监控、报文发送、日志记录、DBC 解码和总线统计。
+Claude Code skill for embedded CAN / CAN-FD bus debugging: interface scanning, real-time monitoring, message transmission, logging, DBC decoding, and bus statistics.
 
-## 功能
+## Features
 
-- 扫描系统可用 CAN 接口与 USB-CAN 设备
-- 实时监控总线报文（支持 ID 过滤、DBC 解码、CAN-FD）
-- 发送标准帧 / 扩展帧 / 远程帧 / CAN-FD 帧（支持周期发送和回听）
-- 记录总线报文到 ASC / BLF / CSV 文件
-- 用 DBC / ARXML / KCD 等数据库文件解码报文或日志
-- 统计总线负载、ID 分布和帧率
+- Scan system available CAN interfaces and USB-CAN devices
+- Real-time bus message monitoring (supports ID filtering, DBC decoding, CAN-FD)
+- Transmit standard / extended / remote / CAN-FD frames (supports periodic transmission and listening)
+- Log bus messages to ASC / BLF / CSV files
+- Decode messages or logs using database files such as DBC / ARXML / KCD
+- Analyze bus load, ID distribution, and frame rates
 
-## 环境要求
+## Requirements
 
 - Python 3.x
 - [python-can](https://python-can.readthedocs.io/) — `pip install python-can`
 - [cantools](https://cantools.readthedocs.io/) — `pip install cantools`
-- [pyserial](https://pypi.org/project/pyserial/) — `pip install pyserial`（仅 slcan 场景需要）
-- USB-CAN 设备驱动（PEAK、Vector、Kvaser 等，按硬件安装对应驱动）
+- [pyserial](https://pypi.org/project/pyserial/) — `pip install pyserial` (required only for slcan scenarios)
+- USB-CAN device drivers (PEAK, Vector, Kvaser, etc., install corresponding driver per hardware)
 
-## 配置
+## Configuration
 
-### 环境级配置 (`config.json`)
+### Environment-Level Configuration (`config.json`)
 
-仅保留 slcan 相关的环境级配置：
+Retains only slcan-related environment-level configuration:
 
 ```json
 {
@@ -32,14 +32,14 @@ Claude Code skill，用于嵌入式 CAN / CAN-FD 总线调试：接口扫描、�
 }
 ```
 
-| 字段 | 必填 | 说明 |
-|------|------|------|
-| `slcan_serial_port` | 否 | slcan 场景的串口号 |
-| `slcan_serial_baudrate` | 否 | slcan 场景的串口速率，默认 115200 |
+| Field | Required | Description |
+|-------|----------|-------------|
+| `slcan_serial_port` | No | Serial port for slcan |
+| `slcan_serial_baudrate` | No | Serial baudrate for slcan, default: 115200 |
 
-### 工程级配置 (`.embeddedskills/config.json`)
+### Project-Level Configuration (`.embeddedskills/config.json`)
 
-工作区下的 `.embeddedskills/config.json` 存放工程级 CAN 配置：
+Project-level CAN configuration located in `.embeddedskills/config.json` under workspace:
 
 ```json
 {
@@ -53,42 +53,42 @@ Claude Code skill，用于嵌入式 CAN / CAN-FD 总线调试：接口扫描、�
 }
 ```
 
-| 字段 | 必填 | 说明 |
-|------|------|------|
-| `interface` | 否 | CAN 后端，如 `pcan` / `vector` / `slcan`，为空时自动扫描 |
-| `channel` | 否 | 通道名，如 `PCAN_USBBUS1` |
-| `bitrate` | 否 | 仲裁域比特率，默认 500000 |
-| `data_bitrate` | 否 | CAN-FD 数据域比特率，默认 2000000 |
-| `log_dir` | 否 | 日志输出目录，默认 `.embeddedskills/logs/can` |
+| Field | Required | Description |
+|-------|----------|-------------|
+| `interface` | No | CAN backend, e.g. `pcan` / `vector` / `slcan`; auto-scanned when empty |
+| `channel` | No | Channel name, e.g. `PCAN_USBBUS1` |
+| `bitrate` | No | Arbitration phase bitrate, default: 500000 |
+| `data_bitrate` | No | CAN-FD data phase bitrate, default: 2000000 |
+| `log_dir` | No | Log output directory, default: `.embeddedskills/logs/can` |
 
-### 参数解析优先级
+### Parameter Resolution Priority
 
-1. **CLI 参数** (`--interface`, `--channel`, `--bitrate` 等) - 最高优先级
-2. **工程级配置** (`.embeddedskills/config.json` 中的 `can` 部分)
-3. **状态文件** (`.embeddedskills/state.json` 中的历史记录)
-4. **默认值** - 最低优先级
+1. **CLI Arguments** (`--interface`, `--channel`, `--bitrate`, etc.) - Highest priority
+2. **Project-Level Configuration** (`can` section in `.embeddedskills/config.json`)
+3. **State File** (History records in `.embeddedskills/state.json`)
+4. **Default Values** - Lowest priority
 
-### 自动扫描行为
+### Auto-Scan Behavior
 
-当未指定 `interface` 和 `channel` 时，脚本会自动扫描系统 CAN 接口：
-- 若只找到一个接口，自动使用并写入工程配置
-- 若找到多个接口，返回候选列表让用户选择
-- 若未找到接口，提示错误
+When `interface` and `channel` are not specified, the scripts automatically scan system CAN interfaces:
+- If only one interface is found, automatically use it and write to project configuration
+- If multiple interfaces are found, return candidate list for user selection
+- If no interfaces are found, report error
 
-> `decode` 子命令的数据库文件通过位置参数显式传入，不从配置读取。
+> The database file for the `decode` subcommand is passed explicitly via positional argument and is not read from configuration.
 
-## 子命令
+## Subcommands
 
-| 子命令 | 用途 | 示例 |
-|--------|------|------|
-| `scan` | 扫描可用 CAN 接口（默认子命令） | `/can scan` |
-| `monitor` | 实时监控总线报文 | `/can monitor --timeout 10` |
-| `send` | 发送测试帧 | `/can send 0x123 "DE AD BE EF"` |
-| `log` | 记录总线日志 | `/can log --output trace.asc` |
-| `decode` | 用数据库文件解码报文或日志 | `/can decode vehicle.dbc --log trace.asc` |
-| `stats` | 统计总线负载与 ID 分布 | `/can stats --duration 10` |
+| Subcommand | Description | Example |
+|------------|-------------|---------|
+| `scan` | Scan available CAN interfaces (default subcommand) | `/can scan` |
+| `monitor` | Real-time bus message monitoring | `/can monitor --timeout 10` |
+| `send` | Transmit test frames | `/can send 0x123 "DE AD BE EF"` |
+| `log` | Record bus logs | `/can log --output trace.asc` |
+| `decode` | Decode messages or logs using database files | `/can decode vehicle.dbc --log trace.asc` |
+| `stats` | Analyze bus load and ID distribution | `/can stats --duration 10` |
 
-## 目录结构
+## Directory Structure
 
 ```
 can/
@@ -107,15 +107,16 @@ can/
     └── common_interfaces.json
 ```
 
-## 支持的接口
+## Supported Interfaces
 
-| 接口 | 平台 | 备注 |
-|------|------|------|
-| `socketcan` | Linux | 内核原生支持，推荐优先使用 |
-| `slcan` | Linux | 串口转 CAN，需 pyserial |
-| `kvaser` | Linux | 需安装 Kvaser Linux 驱动与 CANlib |
-| `pcan` | Linux | 需内核 `peak_usb` 驱动，也可直接以 `socketcan` 接入 |
-| `ixxat` | Linux | 需安装 IXXAT ECI Linux 驱动 |
-| `vector` | Windows only | 仅提供 Windows XL Driver Library，Linux 不可用 |
-| `gs_usb` | Linux | candleLight / CANable 等 gs_usb 固件设备 |
-| `virtual` | 全平台 | 虚拟总线，用于测试 |
+| Interface | Platform | Notes |
+|-----------|----------|-------|
+| `socketcan` | Linux | Native kernel support, recommended for primary use |
+| `slcan` | Linux | Serial to CAN, requires pyserial |
+| `kvaser` | Linux | Requires Kvaser Linux driver and CANlib |
+| `pcan` | Linux | Requires kernel `peak_usb` driver; can also connect directly via `socketcan` |
+| `ixxat` | Linux | Requires IXXAT ECI Linux driver |
+| `vector` | Windows only | Only provides Windows XL Driver Library, unavailable on Linux |
+| `gs_usb` | Linux | gs_usb firmware devices such as candleLight / CANable |
+| `virtual` | Cross-platform | Virtual bus, for testing |
+
