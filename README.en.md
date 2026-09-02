@@ -159,7 +159,7 @@ Three key designs enable true autonomous AI closed-loop:
 <details>
 <summary><b>① Wrap CLI Tools</b></summary>
 
-Each Skill is a set of Python scripts that convert underlying tools (UV4.exe, cmake, JLink.exe, openocd, probe-rs, tshark, etc.) CLI parameters and interactive flows into structured subcommands, allowing AI to call these tools like functions.
+Each Skill is a set of Python scripts that convert underlying tools (cmake, JLinkExe, openocd, probe-rs, tshark, etc.) CLI parameters and interactive flows into structured subcommands, allowing AI to call these tools like functions.
 
 </details>
 
@@ -220,21 +220,27 @@ workspace/
 
 | Skill | Dependencies |
 |---|---|
-| keil | Keil MDK (UV4.exe) |
+| keil | Keil MDK (UV4.exe) — **Windows only**; every other Skill targets Linux |
 | gcc | CMake · Ninja/Make · ARM GNU Toolchain |
 | jlink | SEGGER J-Link Software · arm-none-eabi-gdb |
 | openocd | OpenOCD · Debugger drivers (ST-Link / CMSIS-DAP / DAPLink / FTDI) |
 | probe-rs | probe-rs CLI · arm-none-eabi-gdb |
 | serial | pyserial · USB-to-serial driver |
 | can | python-can · cantools · pyserial · USB-CAN driver |
-| net | Wireshark (tshark) · Npcap |
+| net | Wireshark (tshark) · libpcap |
 | ssh | OpenSSH client (`ssh` / `scp` / `ssh-keygen`) |
 | terminal | pyserial for serial backend · OpenSSH client for SSH backend |
 
 > Except for CAN, serial, and terminal's serial backend, all Skills are implemented using Python standard library — no additional Python dependencies needed.
 
+> [!NOTE]
+> All Skills target Linux by default: tool names, default paths, and auto-discovery directories follow Linux conventions (`/opt/SEGGER/JLink`, `/usr/share/openocd/scripts`, `/dev/ttyUSB0`, SocketCAN, …). Windows command names are kept only as trailing fallback candidates during PATH probing. **Exception: the `keil` skill depends on `UV4.exe` and runs on Windows only.**
+
+> [!NOTE]
+> On Linux, accessing debug probes, serial ports, and capture devices requires permissions: install the udev rules shipped by SEGGER / probe-rs, and add your user to the `dialout` (serial) and `wireshark` (capture) groups — log out and back in for the change to take effect.
+
 > [!WARNING]
-> On Windows, using `probe-rs` with `J-Link` typically requires switching the probe driver to `WinUSB`, which can break the official SEGGER tooling. If you still rely on the SEGGER toolchain, prefer the existing `jlink` skill.
+> `probe-rs` and the official SEGGER tools contend for the same J-Link device; do not run them at the same time. If you still rely on the SEGGER toolchain, prefer the existing `jlink` skill.
 
 </details>
 

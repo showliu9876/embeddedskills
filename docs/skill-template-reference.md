@@ -465,7 +465,7 @@ def main() -> None:
             args.exe,
             local_config=local_config,
             local_keys=["exe"],
-            path_candidates=["tool.exe", "tool"],
+            path_candidates=["tool", "tool.exe"],
             default="tool",
             required=True,
         )
@@ -542,8 +542,8 @@ if __name__ == "__main__":
 
 ```json
 {
-  "exe": "tool.exe",
-  "gdb_exe": "arm-none-eabi-gdb.exe",
+  "exe": "tool",
+  "gdb_exe": "/usr/bin/arm-none-eabi-gdb",
   "log_dir": "",
   "operation_mode": 1
 }
@@ -608,13 +608,13 @@ description: 一句话描述能力范围
 
 ### scan
 
-```powershell
+```bash
 python <skill-dir>/scripts/your_skill_scan.py --json
 ```
 
 ### exec
 
-```powershell
+```bash
 python <skill-dir>/scripts/your_skill_exec.py action --json
 ```
 

@@ -61,7 +61,7 @@
 不应存放：
 
 - 机器相关的绝对工具路径
-- 依赖当前 Windows 用户目录的路径
+- 依赖当前用户家目录的绝对路径（如 `/home/<user>/...`）
 
 ### 4. `<workspace>/.embeddedskills/state.json`
 
@@ -88,8 +88,8 @@
 - `probe-rs`
 - `openocd`
 - `arm-none-eabi-gdb`
-- `JLink.exe`、`JLinkGDBServerCL.exe`
-- `tshark.exe`、`capinfos.exe`
+- `JLinkExe`、`JLinkGDBServerCLExe`
+- `tshark`、`capinfos`
 - 其他可执行工具
 
 ## 统一解析模型
@@ -221,30 +221,32 @@
 ### 探测要求
 
 1. 优先使用 Python `shutil.which()`
-2. Windows 下按 `PATHEXT` 规则解析 `.exe`、`.cmd`、`.bat`
-3. 允许为同一工具定义候选命令名列表
+2. 允许为同一工具定义候选命令名列表，**Linux 名在前，Windows 名作为最小兼容层放在末尾**
+3. `PATH` 未命中时，可继续探测该工具的常见安装前缀（如 `/opt/SEGGER/JLink`、`/usr/share/openocd/scripts`）
 4. 命中后应记录绝对路径
 5. 未命中时再进入默认值或报错分支
 
 ### 候选命令示例
 
-- `cmake`: `["cmake.exe", "cmake"]`
-- `probe-rs`: `["probe-rs.exe", "probe-rs"]`
-- `openocd`: `["openocd.exe", "openocd"]`
-- `arm-none-eabi-gdb`: `["arm-none-eabi-gdb.exe", "arm-none-eabi-gdb"]`
-- `JLink.exe`: `["JLink.exe"]`
-- `JLinkGDBServerCL.exe`: `["JLinkGDBServerCL.exe"]`
-- `tshark`: `["tshark.exe", "tshark"]`
+- `cmake`: `["cmake", "cmake.exe"]`
+- `probe-rs`: `["probe-rs", "probe-rs.exe"]`
+- `openocd`: `["openocd", "openocd.exe"]`
+- `arm-none-eabi-gdb`: `["arm-none-eabi-gdb", "gdb-multiarch", "arm-none-eabi-gdb.exe"]`
+- J-Link Commander: `["JLinkExe", "JLink.exe"]`
+- J-Link GDB Server: `["JLinkGDBServerCLExe", "JLinkGDBServerCL.exe"]`
+- `tshark`: `["tshark", "tshark.exe"]`
 
 ### 来源标记
 
 命中 `PATH` 时，`parameter_sources` 统一记为：
 
-- `path:cmake.exe`
-- `path:probe-rs.exe`
-- `path:arm-none-eabi-gdb.exe`
+- `path:cmake`
+- `path:probe-rs`
+- `path:arm-none-eabi-gdb`
 
 不要只记录成模糊的 `path`。
+
+命中安装目录（而非 `PATH`）时，统一记为 `install_dir:<绝对路径>`，例如 `install_dir:/opt/SEGGER/JLink/JLinkExe`。
 
 ## 自动写回规范
 

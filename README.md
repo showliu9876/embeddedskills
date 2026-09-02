@@ -156,7 +156,7 @@ git clone https://github.com/zhinkgit/embeddedskills .claude/skills/embeddedskil
 <details>
 <summary><b>① 封装命令行工具</b></summary>
 
-每个 Skill 是一组 Python 脚本，将底层工具（UV4.exe、cmake、JLink.exe、openocd、probe-rs、tshark 等）的命令行参数和交互流程转化为结构化子命令，AI 可以像调用函数一样调用这些工具。
+每个 Skill 是一组 Python 脚本，将底层工具（cmake、JLinkExe、openocd、probe-rs、tshark 等）的命令行参数和交互流程转化为结构化子命令，AI 可以像调用函数一样调用这些工具。
 
 </details>
 
@@ -217,21 +217,27 @@ workspace/
 
 | Skill | 依赖 |
 |---|---|
-| keil | Keil MDK (UV4.exe) |
+| keil | Keil MDK (UV4.exe) — **仅 Windows**，其余 Skill 均以 Linux 为主 |
 | gcc | CMake · Ninja/Make · ARM GNU Toolchain |
 | jlink | SEGGER J-Link Software · arm-none-eabi-gdb |
 | openocd | OpenOCD · 调试器驱动 (ST-Link / CMSIS-DAP / DAPLink / FTDI) |
 | probe-rs | probe-rs CLI · arm-none-eabi-gdb |
 | serial | pyserial · USB 转串口驱动 |
 | can | python-can · cantools · pyserial · USB-CAN 驱动 |
-| net | Wireshark (tshark) · Npcap |
+| net | Wireshark (tshark) · libpcap |
 | ssh | OpenSSH 客户端 (`ssh` / `scp` / `ssh-keygen`) |
 | terminal | pyserial（串口后端）· OpenSSH 客户端（SSH 后端） |
 
 > 除 CAN、串口和 terminal 的串口后端外，所有 Skill 均基于 Python 标准库实现，无需额外安装 Python 依赖。
 
+> [!NOTE]
+> 所有 Skill 以 Linux 为默认平台：工具名、默认路径和自动探测目录均按 Linux 约定（`/opt/SEGGER/JLink`、`/usr/share/openocd/scripts`、`/dev/ttyUSB0`、SocketCAN 等），Windows 命令名仅作为兼容候选保留在探测列表末尾。**例外：`keil` skill 依赖 `UV4.exe`，仅可在 Windows 上使用。**
+
+> [!NOTE]
+> Linux 下访问调试探针、串口和抓包设备需要相应权限：安装 SEGGER / probe-rs 提供的 udev 规则，将用户加入 `dialout`（串口）与 `wireshark`（抓包）组，重新登录后生效。
+
 > [!WARNING]
-> Windows 下若要让 `probe-rs` 驱动 `J-Link`，通常需要把驱动切到 `WinUSB`，这会影响 SEGGER 官方工具继续使用。若你仍依赖 J-Link 官方工具链，优先继续使用现有 `jlink` skill。
+> `probe-rs` 与 SEGGER 官方工具会争用同一个 J-Link 设备，不要同时运行。若你仍依赖 J-Link 官方工具链，优先继续使用现有 `jlink` skill。
 
 </details>
 

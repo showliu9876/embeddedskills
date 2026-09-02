@@ -92,7 +92,8 @@ Skills use a three-layer configuration with priority from high to low:
 
 ```
 CLI args
-  └─► skill/config.json              ← Tool paths, local hardware params (UV4.exe, JLink.exe, etc.)
+  └─► skill/config.json              ← Tool paths, local hardware params (JLinkExe, openocd, probe-rs, …)
+        └─► System PATH probing          ← Tool params auto-discovered when skill/config.json omits them
         └─► .embeddedskills/config.json  ← Project defaults (target chip, interface, log dirs)
               └─► .embeddedskills/state.json  ← Runtime state (last build/flash/debug record)
                     └─► Defaults
