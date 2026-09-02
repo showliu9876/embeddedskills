@@ -1,4 +1,4 @@
-"""Serial 多路复用管理 — 单串口读者 + TCP 广播 + 虚拟 PTY"""
+"""Serial multiplexer management — Single serial port reader + TCP broadcast + virtual PTY."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ STATE_KEY = "serial_mux"
 
 
 def find_free_port(start: int = DEFAULT_MUX_PORT) -> int:
-    """从 start 开始找空闲 TCP 端口"""
+    """Find a free TCP port starting from start."""
     for offset in range(100):
         port = start + offset
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -42,7 +42,7 @@ def find_free_port(start: int = DEFAULT_MUX_PORT) -> int:
 
 
 def wait_for_tcp_server(port: int, process: subprocess.Popen, timeout: float = 2.0) -> bool:
-    """等待后台 mux TCP 服务可连接。"""
+    """Wait for background mux TCP server to become connectable."""
     deadline = time.time() + timeout
     while time.time() < deadline:
         if process.poll() is not None:
@@ -56,7 +56,7 @@ def wait_for_tcp_server(port: int, process: subprocess.Popen, timeout: float = 2
 
 
 class SerialMuxServer:
-    """单进程打开真实串口，并把 RX 广播给所有 TCP 客户端。"""
+    """Single process opens the real serial port and broadcasts RX to all TCP clients."""
 
     def __init__(self, config: dict, tcp_port: int):
         self.config = config
@@ -202,16 +202,16 @@ def run_mux_server(config: dict, tcp_port: int) -> int:
 
 
 def start_mux(port: str, baudrate: int | None, workspace: str | None, vserial_link: str):
-    """启动串口多路复用"""
+    """Start serial multiplexer."""
     if not shutil.which("socat"):
         return make_result(
             success=False,
             action="mux_start",
-            summary="socat 未安装",
-            error={"code": "socat_missing", "message": "请安装 socat: apt install socat / pacman -S socat"},
+            summary="socat is not installed",
+            error={"code": "socat_missing", "message": "Please install socat: apt install socat / pacman -S socat"},
         )
 
-    # 检查已运行的 mux
+    # Check running mux
     state = load_workspace_state(workspace)
     existing = state.get(STATE_KEY)
     if existing:
@@ -219,16 +219,16 @@ def start_mux(port: str, baudrate: int | None, workspace: str | None, vserial_li
             return make_result(
                 success=False,
                 action="mux_start",
-                summary="Mux 已在运行",
-                error={"code": "already_running", "message": f"Mux 已在运行 (TCP:{existing['tcp_port']}, PTY:{existing['vserial']})"},
+                summary="Mux is already running",
+                error={"code": "already_running", "message": f"Mux is already running (TCP:{existing['tcp_port']}, PTY:{existing['vserial']})"},
                 details=existing,
             )
         else:
-            # 清理僵尸状态
+            # Clean up zombie state
             state.pop(STATE_KEY, None)
             save_workspace_state(state, workspace)
 
-    # 获取串口配置
+    # Get serial configuration
     cfg, sources = get_serial_config(
         cli_port=port,
         cli_baudrate=baudrate,
@@ -239,23 +239,23 @@ def start_mux(port: str, baudrate: int | None, workspace: str | None, vserial_li
         return make_result(
             success=False,
             action="mux_start",
-            summary="无法获取串口配置",
-            error={"code": "config_error", "message": sources.get("error", "配置错误")},
+            summary="Unable to get serial configuration",
+            error={"code": "config_error", "message": sources.get("error", "Configuration error")},
         )
 
     if is_missing(cfg["port"]):
         return make_result(
             success=False,
             action="mux_start",
-            summary="未指定串口",
-            error={"code": "no_port", "message": "请用 --port 指定串口"},
+            summary="No serial port specified",
+            error={"code": "no_port", "message": "Please specify a serial port with --port"},
         )
 
     tcp_port = find_free_port()
 
     real_port = cfg["port"]
 
-    # Layer 1: Python 后台进程独占真实串口，并向所有 TCP 客户端广播 RX。
+    # Layer 1: Python background process exclusively opens real serial port and broadcasts RX to all TCP clients.
     cmd1 = [
         sys.executable,
         str(Path(__file__).resolve()),
@@ -273,7 +273,7 @@ def start_mux(port: str, baudrate: int | None, workspace: str | None, vserial_li
         "--tcp-port",
         str(tcp_port),
     ]
-    # Layer 2: TCP client → 虚拟 PTY (供 minicom)
+    # Layer 2: TCP client -> virtual PTY (for minicom)
     cmd2 = ["socat", "-d", "-d", f"PTY,link={vserial_link},raw,echo=0", f"TCP:127.0.0.1:{tcp_port}"]
 
     try:
@@ -282,8 +282,8 @@ def start_mux(port: str, baudrate: int | None, workspace: str | None, vserial_li
             return make_result(
                 success=False,
                 action="mux_start",
-                summary=f"无法打开串口 {real_port}",
-                error={"code": "port_open_failed", "message": f"串口 {real_port} 打开失败，请检查是否被占用"},
+                summary=f"Failed to open serial port {real_port}",
+                error={"code": "port_open_failed", "message": f"Failed to open serial port {real_port}, please check if it is occupied"},
             )
 
         p2 = subprocess.Popen(cmd2, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -294,8 +294,8 @@ def start_mux(port: str, baudrate: int | None, workspace: str | None, vserial_li
             return make_result(
                 success=False,
                 action="mux_start",
-                summary="无法创建虚拟串口",
-                error={"code": "pty_failed", "message": "虚拟 PTY 创建失败"},
+                summary="Failed to create virtual serial port",
+                error={"code": "pty_failed", "message": "Virtual PTY creation failed"},
             )
 
         if not os.path.exists(vserial_link):
@@ -306,15 +306,15 @@ def start_mux(port: str, baudrate: int | None, workspace: str | None, vserial_li
             return make_result(
                 success=False,
                 action="mux_start",
-                summary="虚拟串口未创建",
-                error={"code": "pty_not_created", "message": f"PTY 链接 {vserial_link} 未创建"},
+                summary="Virtual serial port not created",
+                error={"code": "pty_not_created", "message": f"PTY link {vserial_link} was not created"},
             )
 
     except Exception as e:
         return make_result(
             success=False,
             action="mux_start",
-            summary="启动失败",
+            summary="Failed to start",
             error={"code": "start_failed", "message": str(e)},
         )
 
@@ -331,7 +331,7 @@ def start_mux(port: str, baudrate: int | None, workspace: str | None, vserial_li
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
     }
 
-    # 保存状态
+    # Save state
     state[STATE_KEY] = mux_info
     save_workspace_state(state, workspace)
     save_project_config(workspace, {
@@ -346,13 +346,13 @@ def start_mux(port: str, baudrate: int | None, workspace: str | None, vserial_li
     return make_result(
         success=True,
         action="mux_start",
-        summary=f"Mux 已启动: {real_port} -> TCP:{tcp_port} -> PTY:{vserial_link}",
+        summary=f"Mux started: {real_port} -> TCP:{tcp_port} -> PTY:{vserial_link}",
         details=mux_info,
     )
 
 
 def stop_mux(workspace: str | None = None):
-    """停止串口多路复用"""
+    """Stop serial multiplexer."""
     state = load_workspace_state(workspace)
     mux_info = state.get(STATE_KEY)
 
@@ -360,8 +360,8 @@ def stop_mux(workspace: str | None = None):
         return make_result(
             success=False,
             action="mux_stop",
-            summary="未找到运行中的 Mux",
-            error={"code": "not_running", "message": "未找到运行中的串口多路复用"},
+            summary="No running Mux found",
+            error={"code": "not_running", "message": "No running serial multiplexer found"},
         )
 
     killed = []
@@ -377,7 +377,7 @@ def stop_mux(workspace: str | None = None):
             except Exception:
                 failed.append(str(pid))
 
-    # 清理残留的虚拟串口符号链接
+    # Clean up leftover virtual serial symlink
     vserial = mux_info.get("vserial")
     if vserial and os.path.islink(vserial):
         try:
@@ -385,7 +385,7 @@ def stop_mux(workspace: str | None = None):
         except OSError:
             pass
 
-    # 清理状态
+    # Clean up state
     state.pop(STATE_KEY, None)
     save_workspace_state(state, workspace)
 
@@ -393,20 +393,20 @@ def stop_mux(workspace: str | None = None):
         return make_result(
             success=True,
             action="mux_stop",
-            summary=f"已终止 {len(killed)} 个进程，{len(failed)} 个失败",
+            summary=f"Terminated {len(killed)} process(es), {len(failed)} failed",
             details={"killed": killed, "failed": failed, "vserial": mux_info.get("vserial")},
         )
     else:
         return make_result(
             success=True,
             action="mux_stop",
-            summary=f"Mux 已停止 ({len(killed)} 个进程已终止)",
+            summary=f"Mux stopped ({len(killed)} process(es) terminated)",
             details={"killed": killed, "vserial": mux_info.get("vserial")},
         )
 
 
 def is_mux_alive(mux_info: dict) -> bool:
-    """检查 mux 进程是否存活"""
+    """Check if mux processes are alive."""
     for pid_key in ("tcp_pid", "pty_pid"):
         pid = mux_info.get(pid_key)
         if not pid:
@@ -419,7 +419,7 @@ def is_mux_alive(mux_info: dict) -> bool:
 
 
 def status_mux(workspace: str | None = None):
-    """查询 mux 状态"""
+    """Query mux status."""
     state = load_workspace_state(workspace)
     mux_info = state.get(STATE_KEY)
 
@@ -427,7 +427,7 @@ def status_mux(workspace: str | None = None):
         return make_result(
             success=True,
             action="mux_status",
-            summary="Mux 未运行",
+            summary="Mux is not running",
             details={"running": False},
         )
 
@@ -438,14 +438,14 @@ def status_mux(workspace: str | None = None):
         return make_result(
             success=True,
             action="mux_status",
-            summary="Mux 已停止（清理残留状态）",
+            summary="Mux stopped (cleaned up leftover state)",
             details={"running": False, "cleaned": True},
         )
 
     return make_result(
         success=True,
         action="mux_status",
-        summary=f"Mux 运行中: {mux_info.get('real_port')} -> TCP:{mux_info.get('tcp_port')} -> PTY:{mux_info.get('vserial')}",
+        summary=f"Mux running: {mux_info.get('real_port')} -> TCP:{mux_info.get('tcp_port')} -> PTY:{mux_info.get('vserial')}",
         details={
             "running": True,
             "real_port": mux_info.get("real_port"),
@@ -459,7 +459,7 @@ def status_mux(workspace: str | None = None):
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "serve":
-        serve_parser = argparse.ArgumentParser(description="Serial mux 后台服务")
+        serve_parser = argparse.ArgumentParser(description="Serial mux background service")
         serve_parser.add_argument("--port", required=True)
         serve_parser.add_argument("--baudrate", type=int, required=True)
         serve_parser.add_argument("--bytesize", type=int, required=True)
@@ -476,18 +476,18 @@ def main():
         }
         sys.exit(run_mux_server(config, args.tcp_port))
 
-    parser = argparse.ArgumentParser(description="Serial 多路复用管理")
-    sub = parser.add_subparsers(dest="command", help="子命令")
+    parser = argparse.ArgumentParser(description="Serial multiplexer management")
+    sub = parser.add_subparsers(dest="command", help="Subcommand")
 
-    p_start = sub.add_parser("start", help="启动多路复用")
-    p_start.add_argument("--port", help="真实串口号 (如 /dev/ttyUSB0)")
-    p_start.add_argument("--baudrate", type=int, help="波特率")
-    p_start.add_argument("--vserial", default=DEFAULT_VSERIAL_LINK, help=f"虚拟串口路径 (默认: {DEFAULT_VSERIAL_LINK})")
-    p_start.add_argument("--workspace", help="工作区路径")
+    p_start = sub.add_parser("start", help="Start multiplexer")
+    p_start.add_argument("--port", help="Real serial port device (e.g. /dev/ttyUSB0)")
+    p_start.add_argument("--baudrate", type=int, help="Baud rate")
+    p_start.add_argument("--vserial", default=DEFAULT_VSERIAL_LINK, help=f"Virtual serial port path (default: {DEFAULT_VSERIAL_LINK})")
+    p_start.add_argument("--workspace", help="Workspace path")
 
-    sub.add_parser("stop", help="停止多路复用").add_argument("--workspace", help="工作区路径")
+    sub.add_parser("stop", help="Stop multiplexer").add_argument("--workspace", help="Workspace path")
 
-    sub.add_parser("status", help="查询多路复用状态").add_argument("--workspace", help="工作区路径")
+    sub.add_parser("status", help="Query multiplexer status").add_argument("--workspace", help="Workspace path")
 
     args = parser.parse_args()
 
@@ -500,12 +500,12 @@ def main():
     else:
         result = status_mux()
         if result["details"].get("running"):
-            print(f"Mux 运行中: {result['details']['real_port']} -> TCP:{result['details']['tcp_port']} -> PTY:{result['details']['vserial']}")
-            print(f"  虚拟串口: {result['details']['vserial']}")
-            print(f"  TCP 端口: {result['details']['tcp_port']}")
-            print(f"  启动时间: {result['details']['started_at']}")
+            print(f"Mux running: {result['details']['real_port']} -> TCP:{result['details']['tcp_port']} -> PTY:{result['details']['vserial']}")
+            print(f"  Virtual serial: {result['details']['vserial']}")
+            print(f"  TCP port: {result['details']['tcp_port']}")
+            print(f"  Started at: {result['details']['started_at']}")
         else:
-            print("Mux 未运行. 使用 'start --port <串口>' 启动")
+            print("Mux is not running. Use 'start --port <port>' to start")
 
     output_json(result)
 

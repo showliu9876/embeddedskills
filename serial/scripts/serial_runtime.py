@@ -1,4 +1,4 @@
-"""serial skill 私有运行时工具。"""
+"""Serial skill private runtime utilities."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def is_missing(value: Any) -> bool:
 
 
 def load_json_file(path: str | Path) -> dict:
-    """加载 JSON 文件，不存在返回空字典"""
+    """Load JSON file, return empty dict if it does not exist."""
     file_path = Path(path)
     if not file_path.exists():
         return {}
@@ -38,19 +38,19 @@ def load_json_file(path: str | Path) -> dict:
 
 
 def save_json_file(path: str | Path, data: dict) -> None:
-    """保存 JSON 文件，自动创建目录"""
+    """Save JSON file, automatically creating parent directories."""
     file_path = Path(path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def load_local_config() -> dict:
-    """加载 skill/config.json（环境级配置）"""
+    """Load skill/config.json (environment-level configuration)."""
     return load_json_file(SKILL_DIR / "config.json")
 
 
 def save_local_config(data: dict) -> None:
-    """保存环境级配置到 skill/config.json"""
+    """Save environment-level configuration to skill/config.json."""
     save_json_file(SKILL_DIR / "config.json", data)
 
 
@@ -61,13 +61,13 @@ def workspace_root(workspace: str | None = None) -> Path:
 
 
 def load_project_config(workspace: str | None = None) -> dict:
-    """从 workspace/.embeddedskills/config.json 读取本 skill 的工程级配置"""
+    """Read project-level configuration for this skill from workspace/.embeddedskills/config.json."""
     proj_config = load_json_file(workspace_root(workspace) / STATE_DIR_NAME / PROJECT_CONFIG_FILE)
     return proj_config.get(SKILL_NAME, {})
 
 
 def save_project_config(workspace: str | None = None, values: dict | None = None) -> None:
-    """写回工程级配置，只更新本 skill 的部分"""
+    """Write back project-level configuration, updating only this skill's section."""
     if values is None:
         return
     proj_path = workspace_root(workspace) / STATE_DIR_NAME / PROJECT_CONFIG_FILE
@@ -77,12 +77,12 @@ def save_project_config(workspace: str | None = None, values: dict | None = None
 
 
 def load_workspace_state(workspace: str | None = None) -> dict:
-    """从 workspace/.embeddedskills/state.json 读取状态"""
+    """Read state from workspace/.embeddedskills/state.json."""
     return load_json_file(workspace_root(workspace) / STATE_DIR_NAME / STATE_FILE_NAME)
 
 
 def save_workspace_state(state: dict, workspace: str | None = None) -> Path:
-    """保存状态"""
+    """Save state."""
     ws = workspace_root(workspace)
     file_path = ws / STATE_DIR_NAME / STATE_FILE_NAME
     save_json_file(file_path, _serialize_state_value(state, ws))
@@ -90,7 +90,7 @@ def save_workspace_state(state: dict, workspace: str | None = None) -> Path:
 
 
 def update_state_entry(category: str, record: dict, workspace: str | None = None) -> dict:
-    """更新状态条目"""
+    """Update state entry."""
     ws = workspace_root(workspace)
     state = load_workspace_state(workspace)
     state[category] = _serialize_state_value({**record, "timestamp": record.get("timestamp") or now_iso()}, ws)
@@ -104,7 +104,7 @@ def update_state_entry(category: str, record: dict, workspace: str | None = None
 
 
 def normalize_path(value: str | None, base: str | Path | None = None) -> str:
-    """路径规范化"""
+    """Normalize path."""
     if is_missing(value):
         return ""
     path = Path(str(value)).expanduser()
@@ -149,7 +149,7 @@ def resolve_param(
     state_keys: list[str] | None = None,
     default: Any = None,
 ) -> tuple[Any, str]:
-    """统一参数解析，优先级: CLI > 环境级 > 工程级 > state > default"""
+    """Unified parameter resolution, priority: CLI > environment-level > project-level > state > default."""
     if not is_missing(cli_value):
         return cli_value, "cli"
 
@@ -175,7 +175,7 @@ def resolve_param(
 
 
 def parameter_context(name: str, value: Any, source: str) -> dict:
-    """记录参数来源"""
+    """Record parameter source."""
     return {"name": name, "value": value, "source": source}
 
 
@@ -186,7 +186,7 @@ def make_result(
     details: dict | None = None,
     error: dict | None = None,
 ) -> dict:
-    """统一结果格式"""
+    """Unified result format."""
     result = {
         "status": "ok" if success else "error",
         "action": action,
@@ -200,7 +200,7 @@ def make_result(
 
 
 def make_timing(start_time: float) -> dict:
-    """执行时间记录"""
+    """Execution timing record."""
     elapsed = datetime.now().timestamp() - start_time
     return {
         "started_at": datetime.fromtimestamp(start_time).astimezone().isoformat(timespec="seconds"),
@@ -210,13 +210,13 @@ def make_timing(start_time: float) -> dict:
 
 
 def scan_serial_ports(filter_keyword: str | None = None) -> tuple[list[dict], str | None]:
-    """扫描系统串口，返回 (ports, error)"""
+    """Scan system serial ports, returning (ports, error)."""
     try:
         from serial.tools.list_ports import comports
     except ImportError:
-        return [], "pyserial 未安装，请执行 pip install pyserial"
+        return [], "pyserial is not installed, please run: pip install pyserial"
 
-    # 加载 VID/PID -> 芯片名称映射
+    # Load VID/PID -> chip name mapping
     chip_map = {}
     try:
         common_devices_path = SKILL_DIR / "references" / "common_devices.json"
@@ -264,8 +264,8 @@ def get_serial_config(
     workspace: str | None = None,
 ) -> tuple[dict, dict]:
     """
-    获取串口配置，按优先级解析参数。
-    返回 (config_dict, sources_dict)
+    Get serial port configuration, resolving parameters by priority.
+    Returns (config_dict, sources_dict).
     """
     local_cfg = load_local_config()
     proj_cfg = load_project_config(workspace)
@@ -273,7 +273,7 @@ def get_serial_config(
 
     sources = {}
 
-    # 解析各个参数
+    # Resolve individual parameters
     port, src = resolve_param(
         "port", cli_port,
         project_config=proj_cfg, project_keys=["port"],
@@ -324,24 +324,24 @@ def get_serial_config(
     )
     sources["timeout_sec"] = src or "default"
 
-    # 如果没有指定 port，尝试扫描
+    # If no port specified, attempt scan
     if is_missing(port):
         ports, err = scan_serial_ports()
         if err:
             return None, {"error": err}
         if len(ports) == 1:
-            # 唯一候选，自动写入配置
+            # Unique candidate, automatically save to config
             port = ports[0]["port"]
             sources["port"] = "auto_scan"
             save_project_config(workspace, {"port": port})
         elif len(ports) > 1:
             return None, {
-                "error": "找到多个串口，请指定一个",
+                "error": "Found multiple serial ports, please specify one",
                 "candidates": ports,
                 "need_selection": True,
             }
         else:
-            return None, {"error": "未找到可用串口"}
+            return None, {"error": "No available serial ports found"}
 
     log_dir, src = resolve_param(
         "log_dir", None,
@@ -365,7 +365,7 @@ def get_serial_config(
 
 
 def is_mux_alive(mux_info: dict) -> bool:
-    """检查 mux 进程是否存活"""
+    """Check if mux processes are alive."""
     for pid_key in ("tcp_pid", "pty_pid"):
         pid = mux_info.get(pid_key, 0)
         if not pid:
@@ -378,7 +378,7 @@ def is_mux_alive(mux_info: dict) -> bool:
 
 
 def get_mux_info(workspace: str | None = None) -> dict | None:
-    """获取运行中的 mux 连接信息，未运行返回 None"""
+    """Get running mux connection information, or None if not running."""
     state = load_workspace_state(workspace)
     mux_info = state.get("serial_mux")
     if not mux_info:
@@ -402,7 +402,7 @@ def _normalize_serial_port(value: Any) -> str:
 
 
 def config_matches_mux(config: dict, mux_info: dict) -> bool:
-    """确认当前串口配置与运行中的 mux 指向同一串口。"""
+    """Verify that current serial config and running mux point to the same serial port."""
     if _normalize_serial_port(config.get("port")) != _normalize_serial_port(mux_info.get("real_port")):
         return False
 
@@ -419,7 +419,7 @@ def config_matches_mux(config: dict, mux_info: dict) -> bool:
 
 
 def get_matching_mux_info(config: dict, workspace: str | None = None) -> dict | None:
-    """仅在 mux 与本次解析出的串口配置一致时返回 mux 信息。"""
+    """Return mux info only when mux matches the resolved serial configuration."""
     mux_info = get_mux_info(workspace)
     if mux_info and config_matches_mux(config, mux_info):
         return mux_info
@@ -427,11 +427,11 @@ def get_matching_mux_info(config: dict, workspace: str | None = None) -> dict | 
 
 
 def open_serial_port(config: dict, use_mux: bool = True):
-    """根据配置打开串口连接。
+    """Open serial port connection according to configuration.
 
-    当 mux 运行且串口配置匹配时自动通过 socket:// 连接 TCP 端口，
-    从而实现与 minicom 同时访问串口。
-    use_mux=False 时跳过 mux 检测，直接打开真实串口。
+    When mux is running and serial configuration matches, automatically connects
+    to the TCP port via socket:// to allow concurrent serial access with minicom.
+    When use_mux=False, skips mux detection and directly opens the real serial port.
     """
     import serial
 
@@ -458,6 +458,7 @@ def open_serial_port(config: dict, use_mux: bool = True):
 
 
 def output_json(data: dict, *, indent: int = 2) -> None:
-    """输出 JSON 到 stdout"""
+    """Output JSON to stdout."""
     sys.stdout.reconfigure(encoding="utf-8")
     print(json.dumps(data, ensure_ascii=False, indent=indent), flush=True)
+

@@ -1,4 +1,4 @@
-"""串口数据发送"""
+"""Serial port data sender."""
 
 import argparse
 import json
@@ -27,7 +27,7 @@ def error_exit(code, message, use_json):
     if use_json:
         output_json(result)
     else:
-        print(f"错误: {message}", file=sys.stderr)
+        print(f"Error: {message}", file=sys.stderr)
     sys.exit(1)
 
 
@@ -50,27 +50,27 @@ def build_payload(data, hex_mode, line_ending):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="串口数据发送")
-    parser.add_argument("data", help="要发送的数据")
-    parser.add_argument("--port", help="串口设备 (如 /dev/ttyUSB0)")
-    parser.add_argument("--baudrate", type=int, help="波特率")
-    parser.add_argument("--bytesize", type=int, help="数据位")
-    parser.add_argument("--parity", help="校验位 (none/even/odd)")
-    parser.add_argument("--stopbits", type=int, help="停止位")
-    parser.add_argument("--encoding", help="编码")
-    parser.add_argument("--hex", action="store_true", help="以 Hex 模式发送")
-    parser.add_argument("--cr", action="store_true", help="追加 CR")
-    parser.add_argument("--lf", action="store_true", help="追加 LF")
-    parser.add_argument("--crlf", action="store_true", help="追加 CRLF")
-    parser.add_argument("--repeat", type=int, default=1, help="重复次数")
-    parser.add_argument("--interval", type=float, default=0.1, help="重复间隔（秒）")
-    parser.add_argument("--wait-response", action="store_true", help="等待响应")
-    parser.add_argument("--response-timeout", type=float, default=2.0, help="响应超时（秒）")
-    parser.add_argument("--direct", action="store_true", help="直连真实串口，跳过 mux")
-    parser.add_argument("--json", action="store_true", help="JSON 输出")
+    parser = argparse.ArgumentParser(description="Serial port data sender")
+    parser.add_argument("data", help="Data to send")
+    parser.add_argument("--port", help="Serial port device (e.g. /dev/ttyUSB0)")
+    parser.add_argument("--baudrate", type=int, help="Baud rate")
+    parser.add_argument("--bytesize", type=int, help="Byte size / data bits")
+    parser.add_argument("--parity", help="Parity (none/even/odd)")
+    parser.add_argument("--stopbits", type=int, help="Stop bits")
+    parser.add_argument("--encoding", help="Encoding")
+    parser.add_argument("--hex", action="store_true", help="Send in Hex mode")
+    parser.add_argument("--cr", action="store_true", help="Append CR")
+    parser.add_argument("--lf", action="store_true", help="Append LF")
+    parser.add_argument("--crlf", action="store_true", help="Append CRLF")
+    parser.add_argument("--repeat", type=int, default=1, help="Repeat count")
+    parser.add_argument("--interval", type=float, default=0.1, help="Repeat interval in seconds")
+    parser.add_argument("--wait-response", action="store_true", help="Wait for response")
+    parser.add_argument("--response-timeout", type=float, default=2.0, help="Response timeout in seconds")
+    parser.add_argument("--direct", action="store_true", help="Connect directly to real serial port, skipping mux")
+    parser.add_argument("--json", action="store_true", help="Output in JSON format")
     args = parser.parse_args()
 
-    # 获取配置
+    # Get configuration
     cfg, sources = get_serial_config(
         cli_port=args.port,
         cli_baudrate=args.baudrate,
@@ -82,11 +82,11 @@ def main():
 
     if cfg is None:
         if sources.get("need_selection"):
-            error_exit("multiple_candidates", f"{sources['error']}，请用 --port 指定", args.json)
+            error_exit("multiple_candidates", f"{sources['error']}, please specify with --port", args.json)
         else:
-            error_exit("config_error", sources.get("error", "配置错误"), args.json)
+            error_exit("config_error", sources.get("error", "Configuration error"), args.json)
 
-    # 保存确认的配置
+    # Save confirmed configuration
     save_project_config(values={
         "port": cfg["port"],
         "baudrate": cfg["baudrate"],
@@ -100,13 +100,13 @@ def main():
 
     payload = build_payload(args.data, args.hex, line_ending)
     if payload is None:
-        error_exit("bad_hex", "Hex 解析失败，请检查输入格式", args.json)
+        error_exit("bad_hex", "Hex parsing failed, please check input format", args.json)
 
     try:
         use_mux = not args.direct
         ser = open_serial_port(cfg, use_mux=use_mux)
         if getattr(ser, "_serial_skill_using_mux", False):
-            print("[mux] 警告: 通过多路复用发送数据，如 minicom 同时在写入会导致串口数据冲突", file=sys.stderr)
+            print("[mux] Warning: Sending data via multiplexer; concurrent writes in minicom may cause serial data conflict", file=sys.stderr)
     except Exception as e:
         error_exit("connect_failed", str(e), args.json)
 
@@ -149,7 +149,7 @@ def main():
     result = {
         "status": "ok",
         "action": "send",
-        "summary": f"已发送 {args.repeat} 次到 {cfg['port']}@{cfg['baudrate']}",
+        "summary": f"Sent {args.repeat} time(s) to {cfg['port']}@{cfg['baudrate']}",
         "details": details,
     }
 
@@ -161,7 +161,7 @@ def main():
             if "rx" in r:
                 print(f"RX[{r['seq']}]: {r['rx']}")
 
-    # 更新状态
+    # Update state
     update_state_entry("last_serial_send", {
         "port": cfg["port"],
         "baudrate": cfg["baudrate"],

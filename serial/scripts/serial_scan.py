@@ -1,4 +1,4 @@
-"""串口扫描：枚举系统串口并展示设备信息"""
+"""Serial port scan: Enumerate system serial ports and display device information."""
 
 import argparse
 import json
@@ -11,7 +11,7 @@ COMMON_DEVICES_PATH = Path(__file__).parent.parent / "references" / "common_devi
 
 
 def load_chip_map():
-    """加载 VID/PID -> 芯片名称映射"""
+    """Load VID/PID -> chip name mapping."""
     chip_map = {}
     try:
         data = json.loads(COMMON_DEVICES_PATH.read_text(encoding="utf-8"))
@@ -24,11 +24,11 @@ def load_chip_map():
 
 
 def scan_ports(filter_keyword=None):
-    """扫描系统串口"""
+    """Scan system serial ports."""
     try:
         from serial.tools.list_ports import comports
     except ImportError:
-        return None, "pyserial 未安装，请执行 pip install pyserial"
+        return None, "pyserial is not installed, please run: pip install pyserial"
 
     chip_map = load_chip_map()
     ports = []
@@ -65,9 +65,9 @@ def output_json(result):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="扫描系统串口")
-    parser.add_argument("--filter", help="按关键词过滤")
-    parser.add_argument("--json", action="store_true", help="JSON 输出")
+    parser = argparse.ArgumentParser(description="Scan system serial ports")
+    parser.add_argument("--filter", help="Filter by keyword")
+    parser.add_argument("--json", action="store_true", help="Output in JSON format")
     args = parser.parse_args()
 
     ports, err = scan_ports(args.filter)
@@ -77,14 +77,14 @@ def main():
         if args.json:
             output_json(result)
         else:
-            print(f"错误: {err}", file=sys.stderr)
+            print(f"Error: {err}", file=sys.stderr)
         sys.exit(1)
 
     mux_info = get_mux_info()
     result = {
         "status": "ok",
         "action": "scan",
-        "summary": f"发现 {len(ports)} 个串口",
+        "summary": f"Found {len(ports)} serial port(s)",
         "details": {"ports": ports},
     }
     if mux_info:
@@ -94,21 +94,21 @@ def main():
             "tcp_port": mux_info["tcp_port"],
             "real_port": mux_info["real_port"],
         }
-        result["summary"] += f" (Mux 运行中: {mux_info['vserial']})"
+        result["summary"] += f" (Mux running: {mux_info['vserial']})"
 
     if args.json:
         output_json(result)
     else:
         if not ports:
-            print("未发现可用串口")
+            print("No available serial ports found.")
         else:
-            print(f"发现 {len(ports)} 个串口:\n")
+            print(f"Found {len(ports)} serial port(s):\n")
             for p in ports:
                 chip = f" [{p['chip']}]" if p["chip"] else ""
                 vid_pid = f" (VID:{p['vid']} PID:{p['pid']})" if p["vid"] else ""
                 print(f"  {p['port']}: {p['description']}{chip}{vid_pid}")
         if mux_info:
-            print(f"\nMux 运行中: {mux_info['real_port']} -> TCP:{mux_info['tcp_port']} -> PTY:{mux_info['vserial']}")
+            print(f"\nMux running: {mux_info['real_port']} -> TCP:{mux_info['tcp_port']} -> PTY:{mux_info['vserial']}")
 
 
 if __name__ == "__main__":
