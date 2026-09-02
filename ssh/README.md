@@ -18,7 +18,7 @@ Claude Code skill，用于 SSH 服务器与 Linux 开发板操作：OpenSSH 配�
 - OpenSSH 客户端：`ssh`、`scp`、`ssh-keygen`
 - 可选：已配置 SSH 密钥，推荐使用 `IdentityFile`
 
-Windows 10/11 通常已内置 OpenSSH 客户端；如果命令不可用，可在“可选功能”中安装 OpenSSH Client。
+多数 Linux 发行版已预装 OpenSSH 客户端；如果命令不可用，可执行 `sudo apt install openssh-client`（Debian/Ubuntu）或 `sudo dnf install openssh-clients`（Fedora/RHEL）安装。
 
 ## 配置
 

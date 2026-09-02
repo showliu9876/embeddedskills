@@ -55,7 +55,7 @@ terminal skill 的环境级配置目前为空对象 `{}`。交互终端的关键
 
 ```bash
 # 启动串口终端
-python scripts/terminal_session.py start serial --port COM11 --baudrate 115200 --name board
+python scripts/terminal_session.py start serial --port /dev/ttyUSB0 --baudrate 115200 --name board
 
 # 启动 SSH 终端，host 使用 ~/.ssh/config 中的 Host 别名
 python scripts/terminal_session.py start ssh --host 1380-P904 --name devboard

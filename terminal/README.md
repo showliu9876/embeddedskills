@@ -16,7 +16,7 @@ Claude Code skill，用于嵌入式调试中的双向交互终端会话：串口
 - Python 3.x
 - 串口后端：`pyserial`，可用 `pip install pyserial` 安装
 - SSH 后端：OpenSSH 客户端 `ssh`
-- 本地后端：Windows 默认使用 PowerShell，Linux/macOS 默认使用 `$SHELL` 或 `/bin/sh`
+- 本地后端：默认使用 `$SHELL`，未设置时回退到 `/bin/sh`
 
 ## 配置
 
@@ -69,7 +69,7 @@ terminal skill 的环境级配置目前为空对象：
 ### 启动串口终端
 
 ```bash
-python scripts/terminal_session.py start serial --port COM11 --baudrate 115200 --name board
+python scripts/terminal_session.py start serial --port /dev/ttyUSB0 --baudrate 115200 --name board
 ```
 
 ### 启动 SSH 终端
