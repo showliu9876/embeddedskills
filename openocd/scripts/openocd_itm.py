@@ -1,6 +1,6 @@
-"""OpenOCD ITM/SWO 观测。
+"""OpenOCD ITM/SWO tracing and observation.
 
-基于 OpenOCD 官方 TPIU/SWO 命令：
+Based on official OpenOCD TPIU/SWO commands:
 - $tpiu_name configure -protocol uart -output :<port> -traceclk <Hz> [-pin-freq <Hz>]
 - $tpiu_name enable
 - itm port <n> on / itm ports on
@@ -161,8 +161,8 @@ def _state_lookup(state: dict) -> dict:
 
 
 def resolve_openocd_params(args, project_config: dict, state_lookup: dict) -> dict:
-    """解析 OpenOCD 工程级参数，优先级: CLI > 工程配置 > state.json"""
-    # board: CLI > 工程配置 > state
+    """Resolve OpenOCD project-level parameters, priority: CLI > project configuration > state.json"""
+    # board: CLI > project configuration > state
     board = args.board
     board_source = "cli"
     if is_missing(board):
@@ -172,7 +172,7 @@ def resolve_openocd_params(args, project_config: dict, state_lookup: dict) -> di
         board = state_lookup.get("board")
         board_source = "state"
 
-    # interface: CLI > 工程配置 > state
+    # interface: CLI > project configuration > state
     interface = args.interface
     interface_source = "cli"
     if is_missing(interface):
@@ -182,7 +182,7 @@ def resolve_openocd_params(args, project_config: dict, state_lookup: dict) -> di
         interface = state_lookup.get("interface")
         interface_source = "state"
 
-    # target: CLI > 工程配置 > state
+    # target: CLI > project configuration > state
     target = args.target
     target_source = "cli"
     if is_missing(target):
@@ -192,7 +192,7 @@ def resolve_openocd_params(args, project_config: dict, state_lookup: dict) -> di
         target = state_lookup.get("target")
         target_source = "state"
 
-    # adapter_speed: CLI > 工程配置 > state
+    # adapter_speed: CLI > project configuration > state
     adapter_speed = args.adapter_speed
     adapter_speed_source = "cli"
     if is_missing(adapter_speed):
@@ -202,7 +202,7 @@ def resolve_openocd_params(args, project_config: dict, state_lookup: dict) -> di
         adapter_speed = state_lookup.get("adapter_speed")
         adapter_speed_source = "state"
 
-    # transport: CLI > 工程配置 > state
+    # transport: CLI > project configuration > state
     transport = args.transport
     transport_source = "cli"
     if is_missing(transport):
@@ -212,21 +212,21 @@ def resolve_openocd_params(args, project_config: dict, state_lookup: dict) -> di
         transport = state_lookup.get("transport")
         transport_source = "state"
 
-    # tpiu_name: CLI > 工程配置
+    # tpiu_name: CLI > project configuration
     tpiu_name = args.tpiu_name
     tpiu_name_source = "cli"
     if is_missing(tpiu_name):
         tpiu_name = project_config.get("tpiu_name")
         tpiu_name_source = "project_config"
 
-    # traceclk: CLI > 工程配置
+    # traceclk: CLI > project configuration
     traceclk = args.traceclk
     traceclk_source = "cli"
     if is_missing(traceclk):
         traceclk = project_config.get("traceclk")
         traceclk_source = "project_config"
 
-    # pin_freq: CLI > 工程配置
+    # pin_freq: CLI > project configuration
     pin_freq = args.pin_freq
     pin_freq_source = "cli"
     if is_missing(pin_freq):
@@ -254,23 +254,23 @@ def resolve_openocd_params(args, project_config: dict, state_lookup: dict) -> di
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="OpenOCD ITM 输出捕获")
-    parser.add_argument("--exe", default=None, help="openocd 路径")
-    parser.add_argument("--board", default=None, help="board 配置文件")
-    parser.add_argument("--interface", default=None, help="interface 配置文件")
-    parser.add_argument("--target", default=None, help="target 配置文件")
-    parser.add_argument("--search", default=None, help="额外配置脚本搜索目录")
-    parser.add_argument("--adapter-speed", default=None, help="调试速率 kHz")
-    parser.add_argument("--transport", default=None, choices=["", "swd", "jtag"], help="传输协议")
-    parser.add_argument("--gdb-port", type=int, default=None, help="GDB 端口")
-    parser.add_argument("--telnet-port", type=int, default=None, help="Telnet 端口")
-    parser.add_argument("--trace-port", type=int, default=3443, help="OpenOCD trace TCP 端口")
-    parser.add_argument("--tpiu-name", default=None, help="TPIU/SWO 对象名，例如 stm32l1.tpiu")
-    parser.add_argument("--traceclk", default=None, help="TRACECLKIN 频率 Hz")
-    parser.add_argument("--pin-freq", default=None, help="SWO pin 频率 Hz")
-    parser.add_argument("--itm-port", action="append", dest="itm_ports", help="启用的 ITM stimulus port，可多次传入")
-    parser.add_argument("--workspace", default=None, help="workspace 根目录，默认当前目录")
-    parser.add_argument("--config", default=None, help="skill config.json 路径")
+    parser = argparse.ArgumentParser(description="OpenOCD ITM output capture")
+    parser.add_argument("--exe", default=None, help="openocd path")
+    parser.add_argument("--board", default=None, help="board configuration file")
+    parser.add_argument("--interface", default=None, help="interface configuration file")
+    parser.add_argument("--target", default=None, help="target configuration file")
+    parser.add_argument("--search", default=None, help="extra configuration script search directory")
+    parser.add_argument("--adapter-speed", default=None, help="adapter speed in kHz")
+    parser.add_argument("--transport", default=None, choices=["", "swd", "jtag"], help="transport protocol")
+    parser.add_argument("--gdb-port", type=int, default=None, help="GDB port")
+    parser.add_argument("--telnet-port", type=int, default=None, help="Telnet port")
+    parser.add_argument("--trace-port", type=int, default=3443, help="OpenOCD trace TCP port")
+    parser.add_argument("--tpiu-name", default=None, help="TPIU/SWO object name, e.g. stm32l1.tpiu")
+    parser.add_argument("--traceclk", default=None, help="TRACECLKIN frequency in Hz")
+    parser.add_argument("--pin-freq", default=None, help="SWO pin frequency in Hz")
+    parser.add_argument("--itm-port", action="append", dest="itm_ports", help="Enabled ITM stimulus port, can be passed multiple times")
+    parser.add_argument("--workspace", default=None, help="workspace root directory, defaults to current directory")
+    parser.add_argument("--config", default=None, help="skill config.json path")
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args()
 
@@ -283,14 +283,14 @@ def main() -> None:
     state_lookup = _state_lookup(state)
     project_config = load_project_config(str(workspace))
 
-    # 解析 OpenOCD 工程级参数
+    # Resolve OpenOCD project-level parameters
     oc_params = resolve_openocd_params(args, project_config, state_lookup)
 
     parameter_sources: dict[str, str] = {}
     try:
         exe, parameter_sources["exe"] = resolve_param("exe", args.exe, config=config, config_keys=["exe"], required=True)
 
-        # 从工程配置或 state 解析 board/interface/target
+        # Resolve board/interface/target from project config or state
         board = oc_params["board"]
         parameter_sources["board"] = oc_params["board_source"]
         interface = oc_params["interface"]
@@ -304,7 +304,7 @@ def main() -> None:
 
         search, parameter_sources["search"] = resolve_param("search", args.search, config=config, config_keys=["scripts_dir"], state_record=state_lookup, state_keys=["search"])
 
-        # tpiu_name, traceclk, pin_freq 从工程配置解析
+        # Resolve tpiu_name, traceclk, pin_freq from project config
         tpiu_name = oc_params["tpiu_name"]
         parameter_sources["tpiu_name"] = oc_params["tpiu_name_source"]
         traceclk = oc_params["traceclk"]
@@ -324,11 +324,11 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {exc}", file=sys.stderr)
+            print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
     if not board and not interface and not target:
-        message = "必须提供 --board 或 --interface + --target"
+        message = "Must provide --board or --interface + --target"
         result = make_result(
             status="error",
             action="itm",
@@ -341,7 +341,7 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {message}", file=sys.stderr)
+            print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
 
     proc = None
@@ -367,7 +367,7 @@ def main() -> None:
         )
         ready, lines = wait_server_ready(proc, args.trace_port)
         if not ready:
-            message = "; ".join(line for line in lines if line) or "OpenOCD ITM 初始化失败"
+            message = "; ".join(line for line in lines if line) or "OpenOCD ITM initialization failed"
             result = make_result(
                 status="error",
                 action="itm",
@@ -380,7 +380,7 @@ def main() -> None:
             if args.as_json:
                 output_json(result)
             else:
-                print(f"错误: {message}", file=sys.stderr)
+                print(f"Error: {message}", file=sys.stderr)
             sys.exit(1)
 
         last_trace_error: OSError | None = None
@@ -416,7 +416,7 @@ def main() -> None:
             },
             str(workspace),
         )
-        # 写回确认过的参数到工程配置
+        # Write confirmed parameters back to project config
         save_project_config(str(workspace), {
             "board": board or "",
             "interface": interface or "",
@@ -443,7 +443,7 @@ def main() -> None:
             emit_stream_record(source="openocd", channel_type="itm", text=text, as_json=args.as_json, stream_type="event")
 
     except FileNotFoundError:
-        message = f"openocd 不存在或不在 PATH 中: {exe}"
+        message = f"openocd does not exist or is not in PATH: {exe}"
         result = make_result(
             status="error",
             action="itm",
@@ -456,10 +456,10 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {message}", file=sys.stderr)
+            print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
     except OSError as exc:
-        message = f"ITM trace 连接失败: {exc}"
+        message = f"ITM trace connection failed: {exc}"
         result = make_result(
             status="error",
             action="itm",
@@ -472,7 +472,7 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {message}", file=sys.stderr)
+            print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:
         pass

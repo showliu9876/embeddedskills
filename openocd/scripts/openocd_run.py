@@ -1,4 +1,4 @@
-"""OpenOCD 探针探测、固件烧录、Flash 擦除、目标复位与底层查询。"""
+"""OpenOCD probe detection, firmware flashing, flash erase, target reset, and low-level queries."""
 
 from __future__ import annotations
 
@@ -39,24 +39,24 @@ from openocd_runtime import (  # noqa: E402
 
 
 ERROR_PATTERNS = [
-    (r"Error:\s*open failed", "adapter_open_failed", "调试器打开失败，请检查 USB 连接和驱动"),
-    (r"Error:\s*Failed to open device", "adapter_open_failed", "调试器打开失败，请检查 USB 连接和驱动"),
-    (r"Error:\s*No.+device found", "no_device", "未找到调试器设备，请检查 USB 连接和驱动"),
-    (r"Error:\s*unable to find.+cfg", "cfg_not_found", "未找到指定的配置文件，请确认 cfg 路径"),
-    (r"Error:\s*Transport .+ is not selected", "transport_error", "传输协议未选择，请检查 transport 设置"),
-    (r"Error:\s*init mode failed", "init_failed", "初始化失败，请检查连线、供电和配置组合"),
-    (r"Error:\s*Could not verify flash", "verify_failed", "固件校验失败，Flash 可能损坏或写保护"),
-    (r"Error:\s*flash write failed", "flash_write_failed", "Flash 写入失败，请检查固件文件和目标状态"),
-    (r"Error:\s*timed out while waiting for target halted", "target_timeout", "等待目标暂停超时，请检查连接"),
-    (r"Error:\s*Target not halted", "target_not_halted", "目标未暂停，擦除或写入前需要先 halt 目标"),
-    (r"Error:\s*couldn't bind .+ to socket", "port_busy", "端口被占用，请检查是否有其他 OpenOCD 实例运行"),
-    (r"Error:\s*Target not examined yet", "target_not_examined", "目标未初始化，请检查 target 配置"),
-    (r"Error:\s*flash bank", "flash_bank_error", "Flash bank 配置错误，请确认 target 配置匹配芯片"),
-    (r"Error:\s*device is read protected", "read_protected", "芯片读保护已开启，需要先解锁（本工具不自动解锁）"),
-    (r"failed erasing sectors", "erase_failed", "Flash 扇区擦除失败，请检查目标是否 halt、读写保护状态及 flash bank 配置"),
-    (r"mass erase failed", "mass_erase_failed", "整片擦除失败，请检查目标是否 halt、读写保护状态及 target 配置"),
-    (r"Error:\s*Cannot connect", "cannot_connect", "无法连接目标，请检查连线、供电和接口类型"),
-    (r"Error:\s*Could not connect", "cannot_connect", "无法连接目标，请检查连线、供电和接口类型"),
+    (r"Error:\s*open failed", "adapter_open_failed", "Failed to open debug adapter. Please check USB connection and drivers."),
+    (r"Error:\s*Failed to open device", "adapter_open_failed", "Failed to open debug adapter. Please check USB connection and drivers."),
+    (r"Error:\s*No.+device found", "no_device", "No debug adapter device found. Please check USB connection and drivers."),
+    (r"Error:\s*unable to find.+cfg", "cfg_not_found", "Unable to find specified configuration file. Please verify cfg path."),
+    (r"Error:\s*Transport .+ is not selected", "transport_error", "Transport protocol not selected. Please check transport settings."),
+    (r"Error:\s*init mode failed", "init_failed", "Initialization failed. Please check wiring, power supply, and configuration combination."),
+    (r"Error:\s*Could not verify flash", "verify_failed", "Firmware verification failed. Flash may be damaged or write-protected."),
+    (r"Error:\s*flash write failed", "flash_write_failed", "Flash write failed. Please check firmware file and target state."),
+    (r"Error:\s*timed out while waiting for target halted", "target_timeout", "Timed out waiting for target to halt. Please check connection."),
+    (r"Error:\s*Target not halted", "target_not_halted", "Target not halted. The target must be halted before erasing or writing."),
+    (r"Error:\s*couldn't bind .+ to socket", "port_busy", "Port is busy. Please check if another OpenOCD instance is running."),
+    (r"Error:\s*Target not examined yet", "target_not_examined", "Target not examined yet. Please check target configuration."),
+    (r"Error:\s*flash bank", "flash_bank_error", "Flash bank configuration error. Please verify that target configuration matches the MCU."),
+    (r"Error:\s*device is read protected", "read_protected", "Device read protection is enabled. It must be unlocked first (this tool does not unlock automatically)."),
+    (r"failed erasing sectors", "erase_failed", "Flash sector erase failed. Please check if target is halted, read/write protection status, and flash bank configuration."),
+    (r"mass erase failed", "mass_erase_failed", "Mass erase failed. Please check if target is halted, read/write protection status, and target configuration."),
+    (r"Error:\s*Cannot connect", "cannot_connect", "Cannot connect to target. Please check wiring, power supply, and interface type."),
+    (r"Error:\s*Could not connect", "cannot_connect", "Cannot connect to target. Please check wiring, power supply, and interface type."),
 ]
 
 ALL_ACTIONS = ["probe", "flash", "erase", "reset", "reset-init", "targets", "flash-banks", "adapter-info", "raw"]
@@ -239,13 +239,13 @@ def run_openocd(
     raw_commands: list[str] | None = None,
 ) -> dict:
     if not board and not interface and not target:
-        return {"status": "error", "action": action, "error": {"code": "missing_config", "message": "必须提供 --board 或 --interface + --target"}}
+        return {"status": "error", "action": action, "error": {"code": "missing_config", "message": "Must provide --board or --interface + --target"}}
 
     if action == "flash":
         if not file:
-            return {"status": "error", "action": action, "error": {"code": "missing_file", "message": "flash 必须提供 --file 固件文件路径"}}
+            return {"status": "error", "action": action, "error": {"code": "missing_file", "message": "flash requires firmware file path via --file"}}
         if file.lower().endswith(".bin") and not address:
-            return {"status": "error", "action": action, "error": {"code": "missing_address", "message": ".bin 文件必须提供 --address 烧录地址"}}
+            return {"status": "error", "action": action, "error": {"code": "missing_address", "message": ".bin file requires flash address via --address"}}
 
     action_commands, error_code = build_action_commands(
         action,
@@ -259,9 +259,9 @@ def run_openocd(
         raw_commands=raw_commands,
     )
     if error_code:
-        return {"status": "error", "action": action, "error": {"code": error_code, "message": f"未知动作: {action}"}}
+        return {"status": "error", "action": action, "error": {"code": error_code, "message": f"Unknown action: {action}"}}
     if action == "erase" and not any("flash erase_sector" in item or "mass_erase" in item for item in action_commands):
-        return {"status": "error", "action": action, "error": {"code": "mass_erase_unsupported", "message": "当前 target/board 未配置 mass erase 命令，请改用 --mode sector 或补充映射"}}
+        return {"status": "error", "action": action, "error": {"code": "mass_erase_unsupported", "message": "Current target/board is not configured with mass erase command; use --mode sector or add mapping"}}
 
     started = time.time()
     try:
@@ -284,9 +284,9 @@ def run_openocd(
             **hidden_subprocess_kwargs(),
         )
     except FileNotFoundError:
-        return {"status": "error", "action": action, "error": {"code": "exe_not_found", "message": f"openocd 不存在或不在 PATH 中: {exe}"}}
+        return {"status": "error", "action": action, "error": {"code": "exe_not_found", "message": f"openocd does not exist or is not in PATH: {exe}"}}
     except subprocess.TimeoutExpired:
-        return {"status": "error", "action": action, "error": {"code": "timeout", "message": "OpenOCD 执行超时(120s)"}}
+        return {"status": "error", "action": action, "error": {"code": "timeout", "message": "OpenOCD execution timed out (120s)"}}
     except Exception as exc:  # pragma: no cover
         return {"status": "error", "action": action, "error": {"code": "exec_error", "message": str(exc)}}
 
@@ -303,13 +303,13 @@ def run_openocd(
 
     details = {"board": board, "interface": interface, "target": target, "elapsed_ms": elapsed_ms, "returncode": proc.returncode}
     details.update({key: value for key, value in parsed.items() if key != "raw"})
-    summary = f"{action} 成功"
+    summary = f"{action} succeeded"
     if action == "flash" and parsed.get("speed_kbps"):
-        summary = f"flash 成功，{parsed['bytes_written']} bytes @ {parsed['speed_kbps']} KiB/s"
+        summary = f"flash succeeded, {parsed['bytes_written']} bytes @ {parsed['speed_kbps']} KiB/s"
     elif action == "erase" and parsed.get("mode") == "mass":
-        summary = "erase 成功，整片擦除完成"
+        summary = "erase succeeded, mass erase completed"
     elif action == "erase" and parsed.get("mode") == "sector":
-        summary = f"erase 成功，sector {parsed.get('first_sector', 0)}-{parsed.get('last_sector', 'last')}"
+        summary = f"erase succeeded, sector {parsed.get('first_sector', 0)}-{parsed.get('last_sector', 'last')}"
 
     status = "ok"
     if proc.returncode != 0:
@@ -323,7 +323,7 @@ def run_openocd(
             return {
                 "status": "error",
                 "action": action,
-                "error": {"code": "command_failed", "message": error_lines[-1].strip() if error_lines else f"执行返回非零退出码: {proc.returncode}"},
+                "error": {"code": "command_failed", "message": error_lines[-1].strip() if error_lines else f"Command returned non-zero exit code: {proc.returncode}"},
                 "details": details,
             }
 
@@ -347,8 +347,8 @@ def _state_lookup(state: dict) -> dict:
 
 
 def resolve_openocd_params(args, project_config: dict, state_lookup: dict) -> dict:
-    """解析 OpenOCD 工程级参数，优先级: CLI > 工程配置 > state.json"""
-    # board: CLI > 工程配置 > state
+    """Resolve OpenOCD project-level parameters, priority: CLI > project configuration > state.json"""
+    # board: CLI > project configuration > state
     board = args.board
     board_source = "cli"
     if is_missing(board):
@@ -358,7 +358,7 @@ def resolve_openocd_params(args, project_config: dict, state_lookup: dict) -> di
         board = state_lookup.get("board")
         board_source = "state"
 
-    # interface: CLI > 工程配置 > state
+    # interface: CLI > project configuration > state
     interface = args.interface
     interface_source = "cli"
     if is_missing(interface):
@@ -368,7 +368,7 @@ def resolve_openocd_params(args, project_config: dict, state_lookup: dict) -> di
         interface = state_lookup.get("interface")
         interface_source = "state"
 
-    # target: CLI > 工程配置 > state
+    # target: CLI > project configuration > state
     target = args.target
     target_source = "cli"
     if is_missing(target):
@@ -378,7 +378,7 @@ def resolve_openocd_params(args, project_config: dict, state_lookup: dict) -> di
         target = state_lookup.get("target")
         target_source = "state"
 
-    # adapter_speed: CLI > 工程配置 > state
+    # adapter_speed: CLI > project configuration > state
     adapter_speed = args.adapter_speed
     adapter_speed_source = "cli"
     if is_missing(adapter_speed):
@@ -388,7 +388,7 @@ def resolve_openocd_params(args, project_config: dict, state_lookup: dict) -> di
         adapter_speed = state_lookup.get("adapter_speed")
         adapter_speed_source = "state"
 
-    # transport: CLI > 工程配置 > state
+    # transport: CLI > project configuration > state
     transport = args.transport
     transport_source = "cli"
     if is_missing(transport):
@@ -413,22 +413,22 @@ def resolve_openocd_params(args, project_config: dict, state_lookup: dict) -> di
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="OpenOCD 探针探测/固件烧录/擦除/复位")
+    parser = argparse.ArgumentParser(description="OpenOCD probe detection, firmware flashing, erasing, and reset")
     parser.add_argument("action", choices=ALL_ACTIONS)
-    parser.add_argument("--exe", default=None, help="openocd 路径")
-    parser.add_argument("--board", default=None, help="board 配置文件")
-    parser.add_argument("--interface", default=None, help="interface 配置文件")
-    parser.add_argument("--target", default=None, help="target 配置文件")
-    parser.add_argument("--search", default=None, help="额外配置脚本搜索目录")
-    parser.add_argument("--adapter-speed", default=None, help="调试速率 kHz")
-    parser.add_argument("--transport", default=None, choices=["", "swd", "jtag"], help="传输协议")
-    parser.add_argument("--file", default=None, help="固件文件路径（flash 用）")
-    parser.add_argument("--address", default=None, help="烧录地址（flash .bin 用）")
-    parser.add_argument("--mode", default="run", choices=["halt", "run", "init", "auto", "mass", "sector"], help="reset/erase 模式")
-    parser.add_argument("--bank", default=None, help="Flash bank 编号（erase 用，默认 0）")
-    parser.add_argument("--command", nargs="+", default=None, help="raw 模式下执行的 OpenOCD 命令列表")
-    parser.add_argument("--config", default=None, help="skill config.json 路径")
-    parser.add_argument("--workspace", default=None, help="workspace 根目录，默认当前目录")
+    parser.add_argument("--exe", default=None, help="openocd path")
+    parser.add_argument("--board", default=None, help="board configuration file")
+    parser.add_argument("--interface", default=None, help="interface configuration file")
+    parser.add_argument("--target", default=None, help="target configuration file")
+    parser.add_argument("--search", default=None, help="extra configuration script search directory")
+    parser.add_argument("--adapter-speed", default=None, help="adapter speed in kHz")
+    parser.add_argument("--transport", default=None, choices=["", "swd", "jtag"], help="transport protocol")
+    parser.add_argument("--file", default=None, help="firmware file path (for flash)")
+    parser.add_argument("--address", default=None, help="flash address (for flash .bin)")
+    parser.add_argument("--mode", default="run", choices=["halt", "run", "init", "auto", "mass", "sector"], help="reset/erase mode")
+    parser.add_argument("--bank", default=None, help="flash bank number (for erase, default 0)")
+    parser.add_argument("--command", nargs="+", default=None, help="list of OpenOCD commands to execute in raw mode")
+    parser.add_argument("--config", default=None, help="skill config.json path")
+    parser.add_argument("--workspace", default=None, help="workspace root directory, defaults to current directory")
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args()
 
@@ -441,14 +441,14 @@ def main() -> None:
     state_lookup = _state_lookup(state)
     project_config = load_project_config(str(workspace))
 
-    # 解析 OpenOCD 工程级参数
+    # Resolve OpenOCD project-level parameters
     oc_params = resolve_openocd_params(args, project_config, state_lookup)
 
     parameter_sources: dict[str, str] = {}
     try:
         exe, parameter_sources["exe"] = resolve_param("exe", args.exe, config=config, config_keys=["exe"], required=True)
 
-        # 从工程配置或 state 解析 board/interface/target
+        # Resolve board/interface/target from project config or state
         board = oc_params["board"]
         parameter_sources["board"] = oc_params["board_source"]
         interface = oc_params["interface"]
@@ -475,11 +475,11 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {exc}", file=sys.stderr)
+            print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
     if args.action == "raw" and int(config.get("operation_mode", 1)) >= 3:
-        message = "operation_mode=3 时禁止直接执行 raw 命令，请先切换模式或显式确认后再执行"
+        message = "Direct execution of raw commands is prohibited when operation_mode=3. Switch mode or confirm explicitly before executing"
         result = make_result(
             status="error",
             action="raw",
@@ -492,11 +492,11 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {message}", file=sys.stderr)
+            print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
 
     if args.action == "flash" and file_path and not os.path.isfile(file_path):
-        message = f"固件文件不存在: {file_path}"
+        message = f"Firmware file does not exist: {file_path}"
         result = make_result(
             status="error",
             action="flash",
@@ -509,7 +509,7 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {message}", file=sys.stderr)
+            print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
 
     raw_result = run_openocd(
@@ -566,7 +566,7 @@ def main() -> None:
                 },
                 str(workspace),
             )
-            # 写回确认过的参数到工程配置
+            # Write confirmed parameters back to project config
             save_project_config(str(workspace), {
                 "board": board or "",
                 "interface": interface or "",
@@ -583,7 +583,7 @@ def main() -> None:
             artifacts=artifacts,
             metrics=metrics,
             state=state_info,
-            next_actions=["可继续复用 last_flash/last_debug 串联后续流程"] if args.action == "flash" else None,
+            next_actions=["Can continue to reuse last_flash/last_debug to chain subsequent workflows"] if args.action == "flash" else None,
             timing=make_timing(started_at, elapsed_ms),
         )
 
@@ -594,7 +594,7 @@ def main() -> None:
     if result["status"] == "ok":
         print(f"[{args.action}] {result['summary']}")
     else:
-        print(f"[{args.action}] 失败 — {result['error']['message']}", file=sys.stderr)
+        print(f"[{args.action}] failed - {result['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
 
