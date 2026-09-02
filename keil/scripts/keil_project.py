@@ -1,4 +1,4 @@
-"""Keil MDK 工程扫描与 Target 枚举"""
+"""Keil MDK project scanning and Target enumeration."""
 
 import argparse
 import json
@@ -12,7 +12,7 @@ PROJECT_SUFFIXES = (".uvprojx", ".uvproj")
 
 
 def scan_projects(root: str) -> list[dict]:
-    """递归搜索 .uvprojx / .uvproj 和 .uvmpw 文件"""
+    """Recursively search for .uvprojx / .uvproj and .uvmpw files."""
     root_path = Path(root).resolve()
     projects = []
     for ext in ("*.uvprojx", "*.uvproj", "*.uvmpw"):
@@ -27,12 +27,12 @@ def scan_projects(root: str) -> list[dict]:
 
 
 def list_targets(project_path: str) -> list[dict]:
-    """解析 .uvprojx / .uvproj 中的 TargetName"""
+    """Parse TargetName entries out of a .uvprojx / .uvproj file."""
     p = Path(project_path).resolve()
     if not p.exists():
-        raise FileNotFoundError(f"工程文件不存在: {p}")
+        raise FileNotFoundError(f"project file not found: {p}")
     if p.suffix not in PROJECT_SUFFIXES:
-        raise ValueError(f"仅支持 .uvprojx / .uvproj 文件，当前: {p.suffix}")
+        raise ValueError(f"only .uvprojx / .uvproj files are supported, got: {p.suffix}")
 
     tree = ET.parse(str(p))
     root = tree.getroot()
@@ -50,15 +50,17 @@ def output_json(data: dict):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Keil 工程扫描与 Target 枚举")
+    parser = argparse.ArgumentParser(
+        description="Keil project scan and Target enumeration"
+    )
     sub = parser.add_subparsers(dest="command")
 
-    scan_p = sub.add_parser("scan", help="搜索工程文件")
-    scan_p.add_argument("--root", default=".", help="搜索根目录")
+    scan_p = sub.add_parser("scan", help="search for project files")
+    scan_p.add_argument("--root", default=".", help="search root directory")
     scan_p.add_argument("--json", action="store_true", dest="as_json")
 
-    targets_p = sub.add_parser("targets", help="枚举 Target")
-    targets_p.add_argument("--project", required=True, help="工程文件路径")
+    targets_p = sub.add_parser("targets", help="enumerate Targets")
+    targets_p.add_argument("--project", required=True, help="project file path")
     targets_p.add_argument("--json", action="store_true", dest="as_json")
 
     args = parser.parse_args()
@@ -74,9 +76,9 @@ def main():
             output_json(result)
         else:
             if not projects:
-                print("未找到 Keil 工程文件")
+                print("No Keil project file found")
             else:
-                print(f"找到 {len(projects)} 个工程：")
+                print(f"Found {len(projects)} project(s):")
                 for i, p in enumerate(projects, 1):
                     print(f"  {i}. [{p['type']}] {p['name']} — {p['path']}")
 
@@ -96,9 +98,9 @@ def main():
                 output_json(result)
             else:
                 if not targets:
-                    print("未找到 Target")
+                    print("No Target found")
                 else:
-                    print(f"工程 {args.project} 包含 {len(targets)} 个 Target：")
+                    print(f"Project {args.project} contains {len(targets)} Target(s):")
                     for i, t in enumerate(targets, 1):
                         print(f"  {i}. {t['name']}")
         except (FileNotFoundError, ValueError) as e:
@@ -110,7 +112,7 @@ def main():
             if args.as_json:
                 output_json(result)
             else:
-                print(f"错误: {e}", file=sys.stderr)
+                print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
 
     else:

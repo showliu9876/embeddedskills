@@ -1,4 +1,4 @@
-"""Keil MDK 构建 / 重建 / 清理 / 烧录。"""
+"""Keil MDK build / rebuild / clean / flash."""
 
 from __future__ import annotations
 
@@ -40,15 +40,15 @@ from keil_runtime import (  # noqa: E402
 
 
 ERRORLEVEL_MAP = {
-    0: ("ok", "无错误或警告"),
-    1: ("ok", "有警告"),
-    2: ("error", "有错误"),
-    3: ("error", "致命错误"),
-    11: ("error", "无法打开工程文件"),
-    12: ("error", "设备数据库缺失"),
-    13: ("error", "写入错误"),
-    15: ("error", "UV4 访问错误"),
-    20: ("error", "未知错误"),
+    0: ("ok", "no errors or warnings"),
+    1: ("ok", "warnings present"),
+    2: ("error", "errors present"),
+    3: ("error", "fatal error"),
+    11: ("error", "cannot open project file"),
+    12: ("error", "device database missing"),
+    13: ("error", "write error"),
+    15: ("error", "UV4 access error"),
+    20: ("error", "unknown error"),
 }
 
 ACTION_FLAG = {
@@ -127,7 +127,7 @@ def _resolve_project_path(workspace: Path, raw_path: str | None) -> str:
 
 
 def _make_relative_to_workspace(workspace: Path, path: str) -> str:
-    """将绝对路径转换为相对于 workspace 的相对路径"""
+    """Convert an absolute path into one relative to the workspace."""
     try:
         p = Path(path).resolve()
         ws = workspace.resolve()
@@ -275,18 +275,18 @@ def _build_summary(action: str, status: str, metrics: dict) -> str:
     errors = metrics.get("errors", 0)
     warnings = metrics.get("warnings", 0)
     if status == "error":
-        return f"{action} 失败，errors={errors} warnings={warnings}"
+        return f"{action} failed, errors={errors} warnings={warnings}"
     if action in ("build", "rebuild"):
-        return f"{action} 成功，errors={errors} warnings={warnings}"
-    return f"{action} 成功"
+        return f"{action} succeeded, errors={errors} warnings={warnings}"
+    return f"{action} succeeded"
 
 
 def _next_actions(action: str, artifacts: dict) -> list[str]:
     actions: list[str] = []
     if action in ("build", "rebuild") and artifacts.get("flash_file"):
-        actions.append("可直接复用 artifacts.flash_file 继续 flash")
+        actions.append("reuse artifacts.flash_file directly for flashing")
     if action in ("build", "rebuild") and artifacts.get("debug_file"):
-        actions.append("可直接复用 artifacts.debug_file 继续 gdb 调试")
+        actions.append("reuse artifacts.debug_file directly for gdb debugging")
     return actions
 
 
@@ -318,7 +318,7 @@ def _extract_uv4_error(action: str, proc: subprocess.CompletedProcess[str], log_
 
     return {
         "code": f"{action}_failed",
-        "message": errorlevel_desc or "UV4 执行失败",
+        "message": errorlevel_desc or "UV4 execution failed",
     }
 
 
@@ -328,14 +328,14 @@ def run_uv4(uv4_exe: str, action: str, project: str, target: str, log_dir: str, 
         return {
             "status": "error",
             "action": action,
-            "error": {"code": "project_not_found", "message": f"工程文件不存在: {project_path}"},
+            "error": {"code": "project_not_found", "message": f"project file not found: {project_path}"},
         }
 
     if not os.path.isfile(uv4_exe):
         return {
             "status": "error",
             "action": action,
-            "error": {"code": "uv4_not_found", "message": f"UV4.exe 不存在: {uv4_exe}"},
+            "error": {"code": "uv4_not_found", "message": f"UV4.exe not found: {uv4_exe}"},
         }
 
     log_path = Path(log_dir).resolve()
@@ -365,9 +365,9 @@ def run_uv4(uv4_exe: str, action: str, project: str, target: str, log_dir: str, 
         return {
             "status": "error",
             "action": action,
-            "error": {"code": "timeout", "message": f"UV4.exe 执行超时({UV4_TIMEOUT_SEC}s)"},
+            "error": {"code": "timeout", "message": f"UV4.exe timed out ({UV4_TIMEOUT_SEC}s)"},
         }
-    except Exception as exc:  # pragma: no cover - 兜底异常
+    except Exception as exc:  # pragma: no cover - catch-all guard
         return {
             "status": "error",
             "action": action,
@@ -380,7 +380,7 @@ def run_uv4(uv4_exe: str, action: str, project: str, target: str, log_dir: str, 
         cleanup_details = {}
 
     metrics = parse_log(str(log_file))
-    _, errorlevel_desc = ERRORLEVEL_MAP.get(proc.returncode, ("error", f"未知返回码: {proc.returncode}"))
+    _, errorlevel_desc = ERRORLEVEL_MAP.get(proc.returncode, ("error", f"unknown exit code: {proc.returncode}"))
     status = "error" if proc.returncode >= 2 or metrics["errors"] > 0 else "ok"
 
     details = {
@@ -418,15 +418,15 @@ def check_last_build_ok(log_dir: str, project: str, target: str) -> bool:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Keil MDK 构建/重建/清理/烧录")
+    parser = argparse.ArgumentParser(description="Keil MDK build/rebuild/clean/flash")
     parser.add_argument("action", choices=["build", "rebuild", "clean", "flash"])
-    parser.add_argument("--uv4", default=None, help="UV4.exe 路径")
-    parser.add_argument("--project", default=None, help="工程文件路径")
-    parser.add_argument("--target", default=None, help="Target 名称")
-    parser.add_argument("--log-dir", default=None, help="日志输出目录")
-    parser.add_argument("--clean-first", action="store_true", help="rebuild 时先 clean")
-    parser.add_argument("--config", default=None, help="skill config.json 路径")
-    parser.add_argument("--workspace", default=None, help="workspace 根目录，默认当前目录")
+    parser.add_argument("--uv4", default=None, help="UV4.exe path")
+    parser.add_argument("--project", default=None, help="project file path")
+    parser.add_argument("--target", default=None, help="Target name")
+    parser.add_argument("--log-dir", default=None, help="log output directory")
+    parser.add_argument("--clean-first", action="store_true", help="clean before rebuild")
+    parser.add_argument("--config", default=None, help="skill config.json path")
+    parser.add_argument("--workspace", default=None, help="workspace root, defaults to cwd")
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args()
 
@@ -434,7 +434,7 @@ def main() -> None:
     started_ts = time.time()
     workspace = workspace_root(args.workspace)
     
-    # 加载三层配置：环境级、工程级、状态
+    # Load the three config layers: machine, project, state
     local_config = load_local_config(__file__)
     project_config = load_project_config(str(workspace))
     state = load_workspace_state(str(workspace))
@@ -442,7 +442,7 @@ def main() -> None:
 
     parameter_sources: dict[str, str] = {}
     try:
-        # uv4_exe: CLI > 环境级配置 > 必需
+        # uv4_exe: CLI > machine config > required
         uv4_exe, parameter_sources["uv4"] = resolve_param(
             "uv4",
             args.uv4,
@@ -453,7 +453,7 @@ def main() -> None:
             workspace=str(workspace),
         )
         
-        # project: CLI > 环境级配置 > 工程级配置 > state.json > 必需
+        # project: CLI > machine config > project config > state.json > required
         project, parameter_sources["project"] = resolve_param(
             "project",
             args.project,
@@ -462,34 +462,34 @@ def main() -> None:
             normalize_as_path=True,
             workspace=str(workspace),
         )
-        # 工程级配置（优先于 state）
+        # Project config takes precedence over state
         if is_missing(project) and not is_missing(project_config.get("project")):
             project = _resolve_project_path(workspace, project_config.get("project"))
             parameter_sources["project"] = "project_config:project"
-        # state.json（最后 fallback）
+        # state.json is the last fallback
         if is_missing(project) and not is_missing(last_build.get("project")):
             project = _resolve_project_path(workspace, str(last_build.get("project")))
             parameter_sources["project"] = "state:project"
         if is_missing(project):
-            raise ValueError("缺少必要参数: project")
-        
-        # target: CLI > 环境级配置 > 工程级配置 > state.json
+            raise ValueError("missing required parameter: project")
+
+        # target: CLI > machine config > project config > state.json
         target, parameter_sources["target"] = resolve_param(
             "target",
             args.target,
             config=local_config,
             config_keys=["default_target"],
         )
-        # 工程级配置（优先于 state）
+        # Project config takes precedence over state
         if is_missing(target) and not is_missing(project_config.get("target")):
             target = project_config.get("target")
             parameter_sources["target"] = "project_config:target"
-        # state.json（最后 fallback）
+        # state.json is the last fallback
         if is_missing(target) and not is_missing(last_build.get("target")):
             target = last_build.get("target")
             parameter_sources["target"] = "state:target"
         
-        # log_dir: CLI > 工程级配置 > 环境级配置 > 默认值(.embeddedskills/build)
+        # log_dir: CLI > project config > machine config > default (.embeddedskills/build)
         log_dir_raw = args.log_dir or project_config.get("log_dir") or local_config.get("log_dir")
         log_dir = _resolve_workspace_path(workspace, log_dir_raw, ".embeddedskills/build")
         if args.log_dir:
@@ -517,14 +517,14 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {exc}", file=sys.stderr)
+            print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
     if args.action == "flash" and not check_last_build_ok(log_dir, project, target or ""):
         result = make_result(
             status="error",
             action="flash",
-            summary="最近构建不可用于 flash",
+            summary="the latest build is not usable for flashing",
             details={"project": project, "target": target, "log_dir": log_dir},
             context=parameter_context(
                 provider="keil",
@@ -533,14 +533,14 @@ def main() -> None:
             ),
             error={
                 "code": "build_not_clean",
-                "message": "最近一次构建存在错误或无构建记录，禁止继续烧录。请先执行 build 并确认无错误。",
+                "message": "the last build had errors or no build record exists; flashing is blocked. Run build first and confirm it is error-free.",
             },
             timing=make_timing(started_at, (time.time() - started_ts) * 1000),
         )
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {result['error']['message']}", file=sys.stderr)
+            print(f"Error: {result['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
     raw_result = run_uv4(
@@ -609,7 +609,7 @@ def main() -> None:
                 str(workspace),
             )
 
-        # 构建成功后，将确认过的参数写回工程级配置
+        # After a successful build, write the confirmed params back to project config
         if raw_result["status"] == "ok":
             project_rel = _make_relative_to_workspace(workspace, project)
             save_project_config(
@@ -645,16 +645,16 @@ def main() -> None:
     if result["status"] == "ok":
         print(f"[{args.action}] {result['summary']}")
         if result.get("artifacts", {}).get("log_file"):
-            print(f"  日志: {result['artifacts']['log_file']}")
+            print(f"  log: {result['artifacts']['log_file']}")
         if result.get("artifacts", {}).get("flash_file"):
             print(f"  Flash: {result['artifacts']['flash_file']}")
         if result.get("artifacts", {}).get("debug_file"):
             print(f"  Debug: {result['artifacts']['debug_file']}")
     else:
         error = result.get("error", {})
-        print(f"[{args.action}] 失败 — {error.get('message', result['summary'])}", file=sys.stderr)
+        print(f"[{args.action}] failed — {error.get('message', result['summary'])}", file=sys.stderr)
         if result.get("details", {}).get("log_file"):
-            print(f"  日志: {result['details']['log_file']}", file=sys.stderr)
+            print(f"  log: {result['details']['log_file']}", file=sys.stderr)
         sys.exit(1)
 
 
