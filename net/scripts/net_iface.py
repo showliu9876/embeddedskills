@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""网络接口发现工具，可关联 tshark 抓包接口列表。"""
+"""Network interface discovery tool, can associate with tshark capture interface list."""
 
 import argparse
 import io
 import json
 import sys
 
-# 确保 stdout 使用 UTF-8 编码
+# Ensure stdout uses UTF-8 encoding
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
@@ -14,11 +14,11 @@ from net_runtime import parse_ipconfig, parse_tshark_interfaces
 
 
 def main():
-    parser = argparse.ArgumentParser(description="列出网络接口")
-    parser.add_argument("--filter", default="", help="按关键词筛选接口")
-    parser.add_argument("--tshark", action="store_true", help="同时显示 tshark 抓包接口")
-    parser.add_argument("--json", action="store_true", dest="output_json", help="JSON 输出")
-    parser.add_argument("--tshark-exe", default="tshark", help="tshark 路径")
+    parser = argparse.ArgumentParser(description="List network interfaces")
+    parser.add_argument("--filter", default="", help="Filter interfaces by keyword")
+    parser.add_argument("--tshark", action="store_true", help="Also display tshark capture interfaces")
+    parser.add_argument("--json", action="store_true", dest="output_json", help="Output JSON format")
+    parser.add_argument("--tshark-exe", default="tshark", help="Path to tshark executable")
     args = parser.parse_args()
 
     interfaces = parse_ipconfig()
@@ -37,7 +37,7 @@ def main():
     result = {
         "status": "ok",
         "action": "iface",
-        "summary": f"发现 {len(interfaces)} 个网络接口",
+        "summary": f"Found {len(interfaces)} network interfaces",
         "details": {
             "interfaces": interfaces,
         },
@@ -47,7 +47,7 @@ def main():
         tshark_ifaces = parse_tshark_interfaces(args.tshark_exe)
         if tshark_ifaces is None:
             result["details"]["tshark_interfaces"] = []
-            result["details"]["tshark_note"] = "tshark 不可用或未找到"
+            result["details"]["tshark_note"] = "tshark unavailable or not found"
         else:
             result["details"]["tshark_interfaces"] = tshark_ifaces
 
@@ -59,7 +59,7 @@ def main():
             status_icon = "●" if iface["status"] == "up" else "○"
             print(f"  {status_icon} {iface['name']} ({iface['type']})")
             if iface["description"]:
-                print(f"    描述: {iface['description']}")
+                print(f"    Description: {iface['description']}")
             ipv4_list = iface.get("ipv4_list") or ([iface["ipv4"]] if iface["ipv4"] else [])
             subnet_list = iface.get("subnet_list") or ([iface["subnet"]] if iface["subnet"] else [])
             if ipv4_list:
@@ -72,9 +72,9 @@ def main():
                 print(f"    MAC:  {iface['mac']}")
             gateway_list = iface.get("gateway_list") or ([iface["gateway"]] if iface["gateway"] else [])
             if gateway_list:
-                print(f"    网关: {', '.join(gateway_list)}")
+                print(f"    Gateway: {', '.join(gateway_list)}")
         if args.tshark and result["details"].get("tshark_interfaces"):
-            print("\n[tshark 抓包接口]")
+            print("\n[tshark Capture Interfaces]")
             for ti in result["details"]["tshark_interfaces"]:
                 print(f"  {ti['index']}. {ti['device']}")
                 if ti["description"]:

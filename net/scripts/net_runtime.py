@@ -1,4 +1,4 @@
-"""net skill 私有运行时工具。"""
+"""Private runtime utilities for the net skill."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def is_missing(value: Any) -> bool:
 
 
 def decode_text(data: bytes | str | None) -> str:
-    """以稳健方式解码命令输出，兼容 Windows 下工具的混合编码。"""
+    """Robustly decode command output, compatible with mixed encodings from tools on Windows."""
     if data is None:
         return ""
     if isinstance(data, str):
@@ -64,7 +64,7 @@ def looks_like_ip(value: str) -> bool:
 
 
 def resolve_tool_path(configured: str | None, default_name: str) -> str:
-    """解析工具路径，优先使用配置，其次 PATH，最后尝试常见安装目录。"""
+    """Resolve tool path: configuration first, then PATH, then common installation directories."""
     candidates: list[str] = []
     if configured and configured.strip():
         candidates.append(configured.strip())
@@ -94,7 +94,7 @@ def resolve_tool_path(configured: str | None, default_name: str) -> str:
 
 
 def load_json_file(path: str | Path) -> dict:
-    """加载 JSON 文件，不存在返回空字典"""
+    """Load JSON file, return empty dictionary if not found."""
     file_path = Path(path)
     if not file_path.exists():
         return {}
@@ -105,19 +105,19 @@ def load_json_file(path: str | Path) -> dict:
 
 
 def save_json_file(path: str | Path, data: dict) -> None:
-    """保存 JSON 文件，自动创建目录"""
+    """Save JSON file, automatically creating parent directories."""
     file_path = Path(path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def load_local_config() -> dict:
-    """加载 skill/config.json（环境级配置）"""
+    """Load skill/config.json (environment-level config)."""
     return load_json_file(SKILL_DIR / "config.json")
 
 
 def save_local_config(data: dict) -> None:
-    """保存环境级配置到 skill/config.json"""
+    """Save environment-level config to skill/config.json."""
     save_json_file(SKILL_DIR / "config.json", data)
 
 
@@ -128,13 +128,13 @@ def workspace_root(workspace: str | None = None) -> Path:
 
 
 def load_project_config(workspace: str | None = None) -> dict:
-    """从 workspace/.embeddedskills/config.json 读取本 skill 的工程级配置"""
+    """Read project-level configuration for this skill from workspace/.embeddedskills/config.json."""
     proj_config = load_json_file(workspace_root(workspace) / STATE_DIR_NAME / PROJECT_CONFIG_FILE)
     return proj_config.get(SKILL_NAME, {})
 
 
 def save_project_config(workspace: str | None = None, values: dict | None = None) -> None:
-    """写回工程级配置，只更新本 skill 的部分"""
+    """Write back project-level configuration, updating only this skill's section."""
     if values is None:
         return
     proj_path = workspace_root(workspace) / STATE_DIR_NAME / PROJECT_CONFIG_FILE
@@ -144,19 +144,19 @@ def save_project_config(workspace: str | None = None, values: dict | None = None
 
 
 def load_workspace_state(workspace: str | None = None) -> dict:
-    """从 workspace/.embeddedskills/state.json 读取状态"""
+    """Read state from workspace/.embeddedskills/state.json."""
     return load_json_file(workspace_root(workspace) / STATE_DIR_NAME / STATE_FILE_NAME)
 
 
 def save_workspace_state(state: dict, workspace: str | None = None) -> Path:
-    """保存状态"""
+    """Save state."""
     file_path = workspace_root(workspace) / STATE_DIR_NAME / STATE_FILE_NAME
     save_json_file(file_path, state)
     return file_path
 
 
 def update_state_entry(category: str, record: dict, workspace: str | None = None) -> dict:
-    """更新状态条目"""
+    """Update state entry."""
     state = load_workspace_state(workspace)
     state[category] = {**record, "timestamp": record.get("timestamp") or now_iso()}
     file_path = save_workspace_state(state, workspace)
@@ -169,7 +169,7 @@ def update_state_entry(category: str, record: dict, workspace: str | None = None
 
 
 def normalize_path(value: str | None, base: str | Path | None = None) -> str:
-    """路径规范化"""
+    """Normalize path."""
     if is_missing(value):
         return ""
     path = Path(str(value)).expanduser()
@@ -197,7 +197,7 @@ def resolve_param(
     state_keys: list[str] | None = None,
     default: Any = None,
 ) -> tuple[Any, str]:
-    """统一参数解析，优先级: CLI > 环境级 > 工程级 > state > default"""
+    """Unified parameter resolution, priority: CLI > local > project > state > default."""
     if not is_missing(cli_value):
         return cli_value, "cli"
 
@@ -223,7 +223,7 @@ def resolve_param(
 
 
 def parameter_context(name: str, value: Any, source: str) -> dict:
-    """记录参数来源"""
+    """Record parameter source."""
     return {"name": name, "value": value, "source": source}
 
 
@@ -234,7 +234,7 @@ def make_result(
     details: dict | None = None,
     error: dict | None = None,
 ) -> dict:
-    """统一结果格式"""
+    """Standardized result format."""
     result = {
         "status": "ok" if success else "error",
         "action": action,
@@ -248,7 +248,7 @@ def make_result(
 
 
 def make_timing(start_time: float) -> dict:
-    """执行时间记录"""
+    """Execution timing record."""
     elapsed = datetime.now().timestamp() - start_time
     return {
         "started_at": datetime.fromtimestamp(start_time).astimezone().isoformat(timespec="seconds"),
@@ -258,7 +258,7 @@ def make_timing(start_time: float) -> dict:
 
 
 def check_tshark(exe: str = "tshark") -> bool:
-    """检查 tshark 是否可用"""
+    """Check whether tshark is available."""
     resolved_exe = resolve_tool_path(exe, DEFAULT_TSHARK)
     try:
         result = subprocess.run([resolved_exe, "--version"], capture_output=True, text=False, timeout=5)
@@ -268,7 +268,7 @@ def check_tshark(exe: str = "tshark") -> bool:
 
 
 def parse_tshark_interfaces(tshark_exe: str = "tshark") -> list[dict] | None:
-    """解析 tshark -D 获取抓包接口列表"""
+    """Parse tshark -D output to get capture interface list."""
     resolved_exe = resolve_tool_path(tshark_exe, DEFAULT_TSHARK)
     try:
         result = subprocess.run(
@@ -285,7 +285,7 @@ def parse_tshark_interfaces(tshark_exe: str = "tshark") -> list[dict] | None:
         line = line.strip()
         if not line:
             continue
-        # 格式: 1. \Device\NPF_{...} (描述)
+        # Format: 1. \Device\NPF_{...} (description)
         m = re.match(r"(\d+)\.\s+(.+?)(?:\s+\((.+?)\))?\s*$", line)
         if m:
             interfaces.append({
@@ -297,7 +297,7 @@ def parse_tshark_interfaces(tshark_exe: str = "tshark") -> list[dict] | None:
 
 
 def parse_ipconfig() -> list[dict]:
-    """解析 ipconfig /all 获取网络接口信息"""
+    """Parse ipconfig /all output to get network interface information."""
     try:
         result = subprocess.run(
             ["ipconfig", "/all"], capture_output=True, text=True, encoding="gbk", errors="replace"
@@ -310,10 +310,10 @@ def parse_ipconfig() -> list[dict]:
     current_label = ""
 
     for line in result.stdout.splitlines():
-        # 适配器标题行
-        adapter_match = re.match(r"^(\S.*?)\s*适配器\s+(.+?)\s*[:：]", line)
+        # Adapter header line
+        adapter_match = re.match(r"^(\S.*?)\s*\u9002\u914d\u5668\s+(.+?)\s*[:\uff1a]", line)
         if not adapter_match:
-            adapter_match = re.match(r"^(\S.*?)\s+adapter\s+(.+?)\s*[:：]", line, re.IGNORECASE)
+            adapter_match = re.match(r"^(\S.*?)\s+adapter\s+(.+?)\s*[:\uff1a]", line, re.IGNORECASE)
         if adapter_match:
             if current:
                 interfaces.append(current)
@@ -340,38 +340,38 @@ def parse_ipconfig() -> list[dict]:
         line_stripped = line.strip()
         key, sep, value = line_stripped.partition(":")
         if not sep:
-            key, sep, value = line_stripped.partition("：")
+            key, sep, value = line_stripped.partition("\uff1a")
         key = key.strip()
         value = value.strip()
         continuation_value = value if sep else line_stripped
 
-        if re.match(r"(媒体状态|Media State)", line_stripped, re.IGNORECASE):
-            if "断开" in line_stripped or "disconnected" in line_stripped.lower():
+        if re.match(r"(\u5a92\u4f53\u72b6\u6001|Media State)", line_stripped, re.IGNORECASE):
+            if "\u65ad\u5f00" in line_stripped or "disconnected" in line_stripped.lower():
                 current["status"] = "down"
             current_label = ""
-        elif re.match(r"(描述|Description)", line_stripped, re.IGNORECASE):
+        elif re.match(r"(\u63cf\u8ff0|Description)", line_stripped, re.IGNORECASE):
             current["description"] = value
             current_label = ""
-        elif re.match(r"(物理地址|Physical Address)", line_stripped, re.IGNORECASE):
+        elif re.match(r"(\u7269\u7406\u5730\u5740|Physical Address)", line_stripped, re.IGNORECASE):
             current["mac"] = value
             current_label = ""
-        elif re.match(r"(IPv4 地址|IPv4 Address)", line_stripped, re.IGNORECASE):
+        elif re.match(r"(IPv4 \u5730\u5740|IPv4 Address)", line_stripped, re.IGNORECASE):
             ipv4 = re.sub(r"\(.*?\)", "", value).strip()
             if looks_like_ipv4(ipv4):
                 current["ipv4_list"].append(ipv4)
                 current["ipv4"] = current["ipv4_list"][0]
             current_label = "ipv4"
-        elif re.match(r"(子网掩码|Subnet Mask)", line_stripped, re.IGNORECASE):
+        elif re.match(r"(\u5b50\u7f51\u63a9\u7801|Subnet Mask)", line_stripped, re.IGNORECASE):
             if looks_like_ipv4(value):
                 current["subnet_list"].append(value)
                 current["subnet"] = current["subnet_list"][0]
             current_label = "subnet"
-        elif re.match(r"(默认网关|Default Gateway)", line_stripped, re.IGNORECASE):
+        elif re.match(r"(\u9ed8\u8ba4\u7f51\u5173|Default Gateway)", line_stripped, re.IGNORECASE):
             if looks_like_ip(value):
                 current["gateway_list"].append(value)
                 current["gateway"] = current["gateway_list"][0]
             current_label = "gateway"
-        elif re.match(r"DHCP", line_stripped, re.IGNORECASE) and ("已启用" in line_stripped or "Yes" in line_stripped):
+        elif re.match(r"DHCP", line_stripped, re.IGNORECASE) and ("\u5df2\u542f\u7528" in line_stripped or "Yes" in line_stripped):
             current["dhcp"] = "enabled"
             current_label = ""
         elif current_label == "gateway" and line.startswith(" ") and looks_like_ip(continuation_value):
@@ -383,7 +383,7 @@ def parse_ipconfig() -> list[dict]:
         elif current_label == "subnet" and line.startswith(" ") and looks_like_ipv4(continuation_value):
             current["subnet_list"].append(continuation_value)
         elif current_label in {"ipv4", "subnet", "gateway"} and value == "" and key:
-            # 避免误判下一行标题
+            # Avoid misidentifying the next line as a header
             current_label = ""
 
     for iface in interfaces + ([current] if current else []):
@@ -412,8 +412,8 @@ def get_net_config(
     workspace: str | None = None,
 ) -> tuple[dict, dict]:
     """
-    获取网络配置，按优先级解析参数。
-    返回 (config_dict, sources_dict)
+    Get network configuration, resolving parameters by priority.
+    Returns (config_dict, sources_dict).
     """
     local_cfg = load_local_config()
     proj_cfg = load_project_config(workspace)
@@ -421,7 +421,7 @@ def get_net_config(
 
     sources = {}
 
-    # 解析各个参数
+    # Resolve individual parameters
     interface, src = resolve_param(
         "interface", cli_interface,
         project_config=proj_cfg, project_keys=["interface"],
@@ -491,7 +491,7 @@ def get_net_config(
     )
     sources["log_dir"] = src or "default"
 
-    # 获取工具路径（环境级配置）
+    # Get tool paths (environment-level configuration)
     tshark_exe = resolve_tool_path(local_cfg.get("tshark_exe"), DEFAULT_TSHARK)
     capinfos_exe = resolve_tool_path(local_cfg.get("capinfos_exe"), DEFAULT_CAPINFOS)
 
@@ -513,6 +513,6 @@ def get_net_config(
 
 
 def output_json(data: dict, *, indent: int = 2) -> None:
-    """输出 JSON 到 stdout"""
+    """Output JSON to stdout."""
     sys.stdout.reconfigure(encoding="utf-8")
     print(json.dumps(data, ensure_ascii=False, indent=indent), flush=True)

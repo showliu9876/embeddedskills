@@ -33,43 +33,43 @@
       "name": "Modbus TCP/RTU",
       "default_port": 502,
       "tshark_filter": "modbus || mbtcp",
-      "description": "工业自动化通信协议，常用于 PLC、HMI、传感器"
+      "description": "Industrial automation communication protocol, commonly used in PLCs, HMIs, and sensors"
     },
     "s7comm": {
       "name": "S7comm (Siemens)",
       "default_port": 102,
       "tshark_filter": "s7comm",
-      "description": "西门子 S7 系列 PLC 通信协议"
+      "description": "Siemens S7 series PLC communication protocol"
     },
     "ethernet_ip": {
       "name": "EtherNet/IP",
       "default_port": 44818,
       "tshark_filter": "enip || cip",
-      "description": "罗克韦尔等厂商的工业以太网协议"
+      "description": "Industrial Ethernet protocol from Rockwell Automation and other vendors"
     },
     "opcua": {
       "name": "OPC UA",
       "default_port": 4840,
       "tshark_filter": "opcua",
-      "description": "统一架构的工业通信标准"
+      "description": "Unified Architecture industrial communication standard"
     },
     "iec104": {
       "name": "IEC 60870-5-104",
       "default_port": 2404,
       "tshark_filter": "iec60870_104",
-      "description": "电力系统远动通信协议"
+      "description": "Telecontrol communication protocol for power systems"
     },
     "dnp3": {
       "name": "DNP3",
       "default_port": 20000,
       "tshark_filter": "dnp3",
-      "description": "电力和水务系统 SCADA 协议"
+      "description": "SCADA protocol for power and water systems"
     },
     "bacnet": {
       "name": "BACnet/IP",
       "default_port": 47808,
       "tshark_filter": "bacnet",
-      "description": "楼宇自动化通信协议"
+      "description": "Building automation and control network protocol"
     }
   },
   "iot_protocols": {
@@ -78,13 +78,13 @@
       "default_port": 1883,
       "tls_port": 8883,
       "tshark_filter": "mqtt",
-      "description": "轻量级 IoT 消息传输协议"
+      "description": "Lightweight IoT message transport protocol"
     },
     "coap": {
       "name": "CoAP",
       "default_port": 5683,
       "tshark_filter": "coap",
-      "description": "受限应用协议，面向资源受限设备"
+      "description": "Constrained Application Protocol for resource-constrained devices"
     }
   }
 }

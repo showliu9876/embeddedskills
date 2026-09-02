@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""端口扫描工具，支持 TCP 扫描和 Banner 获取。"""
+"""Port scanning tool, supporting TCP scanning and banner grabbing."""
 
 import argparse
 import io
@@ -19,7 +19,7 @@ from net_runtime import (
 )
 
 
-# 嵌入式常用端口
+# Common embedded ports
 DEFAULT_PORTS = [
     20, 21, 22, 23, 25, 53, 67, 68, 69, 80, 102, 161, 162,
     443, 502, 554, 1883, 2404, 4840, 5060, 5683, 8080, 8443,
@@ -28,7 +28,7 @@ DEFAULT_PORTS = [
 
 
 def parse_ports(port_str):
-    """解析端口字符串，支持逗号分隔和范围表示。例如: '80,443,8000-8100'"""
+    """Parse port string, supporting comma-separated list and ranges. Example: '80,443,8000-8100'"""
     if not port_str:
         return DEFAULT_PORTS
 
@@ -45,7 +45,7 @@ def parse_ports(port_str):
 
 
 def scan_port(target, port, timeout_ms=1000, grab_banner=False):
-    """扫描单个端口。"""
+    """Scan a single port."""
     timeout_sec = timeout_ms / 1000.0
     result = {"port": port, "state": "closed", "service": "", "banner": ""}
 
@@ -58,7 +58,7 @@ def scan_port(target, port, timeout_ms=1000, grab_banner=False):
         if grab_banner:
             try:
                 sock.settimeout(2)
-                # 发送空行触发 banner
+                # Send newline to trigger banner
                 sock.send(b"\r\n")
                 banner = sock.recv(1024)
                 result["banner"] = banner.decode("utf-8", errors="replace").strip()[:200]
@@ -74,7 +74,7 @@ def scan_port(target, port, timeout_ms=1000, grab_banner=False):
     return result
 
 
-# 常见端口服务映射
+# Common port to service mapping
 PORT_SERVICE_MAP = {
     20: "FTP-Data", 21: "FTP", 22: "SSH", 23: "Telnet", 25: "SMTP",
     53: "DNS", 67: "DHCP-Server", 68: "DHCP-Client", 69: "TFTP",
@@ -87,16 +87,16 @@ PORT_SERVICE_MAP = {
 
 
 def main():
-    parser = argparse.ArgumentParser(description="端口扫描")
-    parser.add_argument("--target", "-t", help="目标地址")
-    parser.add_argument("--ports", "-p", help="端口列表 (如 '80,443,8000-8100')")
-    parser.add_argument("--timeout", type=int, default=0, help="超时(毫秒)")
-    parser.add_argument("--banner", action="store_true", help="获取 Banner")
-    parser.add_argument("--concurrent", type=int, default=20, help="并发线程数")
-    parser.add_argument("--json", action="store_true", dest="output_json", help="JSON 输出")
+    parser = argparse.ArgumentParser(description="Port scan")
+    parser.add_argument("--target", "-t", help="Target address")
+    parser.add_argument("--ports", "-p", help="Port list (e.g. '80,443,8000-8100')")
+    parser.add_argument("--timeout", type=int, default=0, help="Timeout in milliseconds")
+    parser.add_argument("--banner", action="store_true", help="Grab banner")
+    parser.add_argument("--concurrent", type=int, default=20, help="Concurrent thread count")
+    parser.add_argument("--json", action="store_true", dest="output_json", help="Output JSON format")
     args = parser.parse_args()
 
-    # 获取配置
+    # Get configuration
     config, sources = get_net_config(
         cli_target=args.target,
         cli_timeout_ms=args.timeout if args.timeout > 0 else None,
@@ -111,12 +111,12 @@ def main():
         error = {
             "status": "error",
             "action": "scan",
-            "error": {"code": "no_target", "message": "未配置目标地址，请用 --target 指定或在 .embeddedskills/config.json 中配置"},
+            "error": {"code": "no_target", "message": "Target address not configured. Specify with --target or configure in .embeddedskills/config.json"},
         }
         print(json.dumps(error, ensure_ascii=False, indent=2))
         sys.exit(1)
 
-    # 保存确认的配置
+    # Save confirmed configuration
     save_project_config(values={
         "target": target,
         "timeout_ms": timeout_ms,
@@ -142,7 +142,7 @@ def main():
     output = {
         "status": "ok",
         "action": "scan",
-        "summary": f"扫描 {target}，检测 {len(ports)} 个端口，发现 {len(open_ports)} 个开放端口",
+        "summary": f"Scanned {target}, checked {len(ports)} ports, found {len(open_ports)} open ports",
         "details": {
             "target": target,
             "ports_scanned": len(ports),
@@ -156,15 +156,15 @@ def main():
     else:
         print(f"[net scan] {output['summary']}")
         if open_ports:
-            print(f"\n  {'端口':<8} {'状态':<8} {'服务':<16} {'Banner'}")
+            print(f"\n  {'PORT':<8} {'STATE':<8} {'SERVICE':<16} {'BANNER'}")
             print(f"  {'----':<8} {'----':<8} {'----':<16} {'------'}")
             for p in open_ports:
                 banner = p.get("banner", "")[:40]
                 print(f"  {p['port']:<8} {p['state']:<8} {p['service']:<16} {banner}")
         else:
-            print("  未发现开放端口")
+            print("  No open ports found")
 
-    # 更新状态
+    # Update state
     update_state_entry("last_net_scan", {
         "target": target,
         "ports_scanned": len(ports),

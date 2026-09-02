@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""基于 tshark/capinfos 的 pcap 离线分析工具。"""
+"""Offline pcap analysis tool based on tshark/capinfos."""
 
 import argparse
 import io
@@ -31,13 +31,13 @@ def run_cmd(cmd, timeout=30):
         result = subprocess.run(cmd, capture_output=True, text=False, timeout=timeout)
         return decode_text(result.stdout), decode_text(result.stderr), result.returncode
     except FileNotFoundError:
-        return "", f"命令未找到: {cmd[0]}", -1
+        return "", f"Command not found: {cmd[0]}", -1
     except subprocess.TimeoutExpired:
-        return "", "命令超时", -2
+        return "", "Command timed out", -2
 
 
 def get_capinfos_summary(capinfos_exe, pcap_file):
-    """通过 capinfos 获取文件级统计。"""
+    """Get file-level statistics via capinfos."""
     stdout, stderr, rc = run_cmd([capinfos_exe, "-M", pcap_file])
     if rc != 0:
         return None
@@ -69,7 +69,7 @@ def get_capinfos_summary(capinfos_exe, pcap_file):
 
 
 def get_protocol_hierarchy(tshark_exe, pcap_file, display_filter="", decode_as=""):
-    """获取协议层次统计。"""
+    """Get protocol hierarchy statistics."""
     cmd = [tshark_exe, "-r", pcap_file, "-q", "-z", "io,phs"]
     if display_filter:
         cmd += ["-Y", display_filter]
@@ -94,7 +94,7 @@ def get_protocol_hierarchy(tshark_exe, pcap_file, display_filter="", decode_as="
 
 
 def get_conversations(tshark_exe, pcap_file, display_filter="", decode_as="", top=20):
-    """获取会话统计。"""
+    """Get conversation statistics."""
     cmd = [tshark_exe, "-r", pcap_file, "-q", "-z", "conv,ip"]
     if display_filter:
         cmd += ["-Y", display_filter]
@@ -114,7 +114,7 @@ def get_conversations(tshark_exe, pcap_file, display_filter="", decode_as="", to
             continue
         if not header_found:
             continue
-        # 格式: addr_a <-> addr_b  frames_a bytes_a frames_b bytes_b frames_total bytes_total ...
+        # Format: addr_a <-> addr_b  frames_a bytes_a frames_b bytes_b frames_total bytes_total ...
         parts = re.split(r"\s+", line)
         if len(parts) >= 8 and "<->" in parts:
             idx = parts.index("<->")
@@ -128,7 +128,7 @@ def get_conversations(tshark_exe, pcap_file, display_filter="", decode_as="", to
 
 
 def get_endpoints(tshark_exe, pcap_file, display_filter="", decode_as="", top=20):
-    """获取端点统计。"""
+    """Get endpoint statistics."""
     cmd = [tshark_exe, "-r", pcap_file, "-q", "-z", "endpoints,ip"]
     if display_filter:
         cmd += ["-Y", display_filter]
@@ -160,15 +160,15 @@ def get_endpoints(tshark_exe, pcap_file, display_filter="", decode_as="", top=20
 
 
 def detect_anomalies(tshark_exe, pcap_file, display_filter="", decode_as=""):
-    """检测常见网络异常（重传、RST、错误等）。"""
+    """Detect common network anomalies (retransmissions, RST, errors, etc.)."""
     checks = [
-        ("tcp.analysis.retransmission", "TCP 重传"),
-        ("tcp.analysis.fast_retransmission", "TCP 快速重传"),
-        ("tcp.analysis.duplicate_ack", "TCP 重复 ACK"),
+        ("tcp.analysis.retransmission", "TCP retransmission"),
+        ("tcp.analysis.fast_retransmission", "TCP fast retransmission"),
+        ("tcp.analysis.duplicate_ack", "TCP duplicate ACK"),
         ("tcp.flags.reset==1", "TCP RST"),
-        ("icmp.type==3", "ICMP 不可达"),
-        ("dns.flags.rcode!=0", "DNS 错误"),
-        ("tcp.analysis.zero_window", "TCP 零窗口"),
+        ("icmp.type==3", "ICMP unreachable"),
+        ("dns.flags.rcode!=0", "DNS error"),
+        ("tcp.analysis.zero_window", "TCP zero window"),
     ]
 
     anomalies = []
@@ -191,7 +191,7 @@ def detect_anomalies(tshark_exe, pcap_file, display_filter="", decode_as=""):
 
 
 def get_io_stats(tshark_exe, pcap_file, display_filter="", decode_as=""):
-    """获取 IO 统计。"""
+    """Get IO statistics."""
     cmd = [tshark_exe, "-r", pcap_file, "-q", "-z", "io,stat,1"]
     if display_filter:
         cmd += ["-Y", display_filter]
@@ -216,23 +216,23 @@ def get_io_stats(tshark_exe, pcap_file, display_filter="", decode_as=""):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="分析 pcap 文件")
-    parser.add_argument("pcap_file", help="pcap/pcapng 文件路径")
+    parser = argparse.ArgumentParser(description="Analyze pcap file")
+    parser.add_argument("pcap_file", help="Path to pcap/pcapng file")
     parser.add_argument("--mode", default="summary",
                         choices=["summary", "protocols", "conversations", "endpoints", "io", "anomalies", "all"])
-    parser.add_argument("--filter", default="", help="显示过滤器")
-    parser.add_argument("--top", type=int, default=20, help="显示前 N 条")
-    parser.add_argument("--decode-as", default="", help="解码规则")
-    parser.add_argument("--export-fields", default="", help="导出字段列表")
-    parser.add_argument("--output", default="", help="CSV 输出路径")
-    parser.add_argument("--json", action="store_true", dest="output_json", help="JSON 输出")
+    parser.add_argument("--filter", default="", help="Display filter")
+    parser.add_argument("--top", type=int, default=20, help="Display top N entries")
+    parser.add_argument("--decode-as", default="", help="Decode rule")
+    parser.add_argument("--export-fields", default="", help="List of fields to export")
+    parser.add_argument("--output", default="", help="Output CSV path")
+    parser.add_argument("--json", action="store_true", dest="output_json", help="Output JSON format")
     args = parser.parse_args()
 
     if not os.path.exists(args.pcap_file):
         error = {
             "status": "error",
             "action": "analyze",
-            "error": {"code": "file_not_found", "message": f"文件不存在: {args.pcap_file}"},
+            "error": {"code": "file_not_found", "message": f"File does not exist: {args.pcap_file}"},
         }
         print(json.dumps(error, ensure_ascii=False, indent=2))
         sys.exit(1)
@@ -255,7 +255,7 @@ def main():
             error = {
                 "status": "error",
                 "action": "analyze",
-                "error": {"code": "filter_failed", "message": stderr.strip() or "过滤失败"},
+                "error": {"code": "filter_failed", "message": stderr.strip() or "Filter failed"},
             }
             print(json.dumps(error, ensure_ascii=False, indent=2))
             sys.exit(1)
@@ -277,9 +277,9 @@ def main():
             info = get_capinfos_summary(capinfos_exe, analysis_input)
             if info:
                 result["details"]["summary"] = info
-                result["summary"] = f"文件包含 {info.get('packet_count', '?')} 个数据包"
+                result["summary"] = f"File contains {info.get('packet_count', '?')} packets"
             else:
-                # 回退用 tshark 统计
+                # Fallback to tshark statistics
                 stdout, _, rc = run_cmd([tshark_exe, "-r", analysis_input, "-q", "-z", "io,stat,0"])
                 result["details"]["summary"] = {"raw": stdout}
 
@@ -308,7 +308,7 @@ def main():
                 tshark_exe, analysis_input, "", args.decode_as
             )
 
-    # 导出字段
+    # Export fields
     if args.export_fields and args.output:
         fields = [f.strip() for f in args.export_fields.split(",")]
         cmd = [tshark_exe, "-r", analysis_input, "-T", "fields"]
@@ -328,26 +328,26 @@ def main():
         if args.output_json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
-            print(f"[net analyze] {result.get('summary', '分析完成')}")
+            print(f"[net analyze] {result.get('summary', 'Analysis complete')}")
             details = result["details"]
             if "summary" in details and isinstance(details["summary"], dict):
                 for k, v in details["summary"].items():
                     if k != "raw":
                         print(f"  {k}: {v}")
             if "protocols" in details:
-                print("\n  协议统计:")
+                print("\n  Protocol statistics:")
                 for p in details["protocols"][:args.top]:
                     print(f"    {p['protocol']}: {p['frames']} frames, {p['bytes']} bytes")
             if "anomalies" in details and details["anomalies"]:
-                print("\n  异常检测:")
+                print("\n  Anomaly detection:")
                 for a in details["anomalies"]:
-                    print(f"    {a['type']}: {a['count']} 次")
+                    print(f"    {a['type']}: {a['count']}")
             if "conversations" in details:
-                print("\n  会话:")
+                print("\n  Conversations:")
                 for c in details["conversations"][:5]:
                     print(f"    {c['addr_a']} <-> {c['addr_b']}")
             if "endpoints" in details:
-                print("\n  端点:")
+                print("\n  Endpoints:")
                 for e in details["endpoints"][:5]:
                     print(f"    {e['address']}")
     finally:

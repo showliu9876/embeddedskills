@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""基于 tshark 的流量统计工具，按协议、端点或端口输出。"""
+"""Traffic statistics tool based on tshark, outputting by protocol, endpoint, or port."""
 
 import argparse
 import io
@@ -23,7 +23,7 @@ from net_runtime import (
 
 
 def run_tshark_stats(exe, iface, duration, mode, interval, display_filter=""):
-    """先抓包到临时文件，再离线统计，确保显示过滤器可靠生效。"""
+    """Capture packets to a temporary file first, then perform offline statistics to ensure display filters take effect reliably."""
     fd, capture_file = tempfile.mkstemp(prefix="net_stats_", suffix=".pcapng")
     os.close(fd)
     filtered_file = ""
@@ -73,9 +73,9 @@ def run_tshark_stats(exe, iface, duration, mode, interval, display_filter=""):
         )
         return decode_text(result.stdout), decode_text(result.stderr), result.returncode
     except subprocess.TimeoutExpired:
-        return "", "统计超时", -1
+        return "", "Statistics timed out", -1
     except FileNotFoundError:
-        return "", "tshark 未找到", -2
+        return "", "tshark not found", -2
     finally:
         if os.path.exists(capture_file):
             os.remove(capture_file)
@@ -84,7 +84,7 @@ def run_tshark_stats(exe, iface, duration, mode, interval, display_filter=""):
 
 
 def parse_io_stat(stdout):
-    """解析 io,stat 输出。"""
+    """Parse io,stat output."""
     intervals = []
     for line in stdout.splitlines():
         m = re.match(r"\|\s*([\d.]+)\s*<>\s*([\d.]+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|", line)
@@ -99,7 +99,7 @@ def parse_io_stat(stdout):
 
 
 def parse_protocol_hierarchy(stdout):
-    """解析 io,phs 输出。"""
+    """Parse io,phs output."""
     protocols = []
     for line in stdout.splitlines():
         line = line.strip()
@@ -114,7 +114,7 @@ def parse_protocol_hierarchy(stdout):
 
 
 def parse_endpoints(stdout):
-    """解析 endpoints 输出。"""
+    """Parse endpoints output."""
     endpoints = []
     started = False
     for line in stdout.splitlines():
@@ -136,17 +136,17 @@ def parse_endpoints(stdout):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="流量统计")
-    parser.add_argument("--interface", "-i", help="抓包接口")
-    parser.add_argument("--duration", type=int, help="统计时长(秒)")
-    parser.add_argument("--display-filter", "-Y", help="显示过滤器")
-    parser.add_argument("--interval", type=int, default=1, help="统计间隔(秒)")
+    parser = argparse.ArgumentParser(description="Traffic statistics")
+    parser.add_argument("--interface", "-i", help="Capture interface")
+    parser.add_argument("--duration", type=int, help="Duration in seconds")
+    parser.add_argument("--display-filter", "-Y", help="Display filter")
+    parser.add_argument("--interval", type=int, default=1, help="Interval in seconds")
     parser.add_argument("--mode", default="overview",
                         choices=["overview", "protocol", "endpoint", "port"])
-    parser.add_argument("--json", action="store_true", dest="output_json", help="JSON 输出")
+    parser.add_argument("--json", action="store_true", dest="output_json", help="Output JSON format")
     args = parser.parse_args()
 
-    # 获取配置
+    # Get configuration
     config, sources = get_net_config(
         cli_interface=args.interface,
         cli_duration=args.duration,
@@ -164,7 +164,7 @@ def main():
             "action": "stats",
             "error": {
                 "code": "tshark_not_found",
-                "message": f"未找到 tshark ({exe})，请确认 Wireshark 已安装且已加入 PATH",
+                "message": f"tshark not found ({exe}). Please ensure Wireshark is installed and added to PATH",
             },
         }
         print(json.dumps(error, ensure_ascii=False, indent=2))
@@ -174,19 +174,19 @@ def main():
         error = {
             "status": "error",
             "action": "stats",
-            "error": {"code": "no_interface", "message": "未配置抓包接口，请用 --interface 指定或在 .embeddedskills/config.json 中配置"},
+            "error": {"code": "no_interface", "message": "Capture interface not configured. Specify with --interface or configure in .embeddedskills/config.json"},
         }
         print(json.dumps(error, ensure_ascii=False, indent=2))
         sys.exit(1)
 
-    # 保存确认的配置
+    # Save confirmed configuration
     save_project_config(values={
         "interface": iface,
         "duration": duration,
         "display_filter": display_filter,
     })
 
-    print(f"[net stats] 接口={iface}, 时长={duration}s, 模式={args.mode}", file=sys.stderr)
+    print(f"[net stats] interface={iface}, duration={duration}s, mode={args.mode}", file=sys.stderr)
 
     stdout, stderr, rc = run_tshark_stats(exe, iface, duration, args.mode, args.interval, display_filter)
 
@@ -194,7 +194,7 @@ def main():
         error = {
             "status": "error",
             "action": "stats",
-            "error": {"code": "stats_failed", "message": stderr.strip() or "统计失败"},
+            "error": {"code": "stats_failed", "message": stderr.strip() or "Statistics failed"},
         }
         print(json.dumps(error, ensure_ascii=False, indent=2))
         sys.exit(1)
@@ -210,40 +210,40 @@ def main():
         intervals = parse_io_stat(stdout)
         total_frames = sum(i["frames"] for i in intervals)
         total_bytes = sum(i["bytes"] for i in intervals)
-        result["summary"]["description"] = f"{duration}s 内共 {total_frames} 帧, {total_bytes} 字节"
+        result["summary"]["description"] = f"{total_frames} frames, {total_bytes} bytes in {duration}s"
         result["details"]["intervals"] = intervals
         result["details"]["total_frames"] = total_frames
         result["details"]["total_bytes"] = total_bytes
 
     elif args.mode == "protocol":
         protocols = parse_protocol_hierarchy(stdout)
-        result["summary"]["description"] = f"检测到 {len(protocols)} 种协议"
+        result["summary"]["description"] = f"Detected {len(protocols)} protocols"
         result["details"]["protocols"] = protocols
 
     elif args.mode in ("endpoint", "port"):
         endpoints = parse_endpoints(stdout)
-        result["summary"]["description"] = f"发现 {len(endpoints)} 个端点"
+        result["summary"]["description"] = f"Found {len(endpoints)} endpoints"
         result["details"]["endpoints"] = endpoints
 
     if args.output_json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
-        print(f"[net stats] {result['summary'].get('description', '统计完成')}")
+        print(f"[net stats] {result['summary'].get('description', 'Statistics complete')}")
         details = result["details"]
         if "intervals" in details:
-            print(f"\n  {'时间段':<20} {'帧数':<10} {'字节数'}")
+            print(f"\n  {'INTERVAL':<20} {'FRAMES':<10} {'BYTES'}")
             for i in details["intervals"]:
                 print(f"  {i['start']:.0f}-{i['end']:.0f}s{'':<14} {i['frames']:<10} {i['bytes']}")
         if "protocols" in details:
-            print("\n  协议分布:")
+            print("\n  Protocol hierarchy:")
             for p in details["protocols"][:15]:
                 print(f"    {p['protocol']}: {p['frames']} frames, {p['bytes']} bytes")
         if "endpoints" in details:
-            print("\n  端点:")
+            print("\n  Endpoints:")
             for e in details["endpoints"][:15]:
                 print(f"    {e['address']}: {e['packets']} pkts, {e['bytes']} bytes")
 
-    # 更新状态
+    # Update state
     update_state_entry("last_observe", {
         "type": "net_stats",
         "interface": iface,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""基于 tshark 的抓包工具，支持保存文件、过滤、解码规则和结构化输出。"""
+"""Capture tool based on tshark, supporting file saving, filtering, decode rules, and structured output."""
 
 import argparse
 import io
@@ -26,37 +26,37 @@ def build_tshark_cmd(config, args, *, output_path="", include_display_filter=Tru
     exe = config["tshark_exe"]
     cmd = [exe]
 
-    # 接口
+    # Interface
     iface = config["interface"]
     if iface:
         cmd += ["-i", str(iface)]
 
-    # 抓包过滤器 (BPF)
+    # Capture filter (BPF)
     capture_filter = config["capture_filter"]
     if capture_filter:
         cmd += ["-f", capture_filter]
 
-    # 显示过滤器
+    # Display filter
     display_filter = config["display_filter"]
     if display_filter and include_display_filter:
         cmd += ["-Y", display_filter]
 
-    # 持续时间
+    # Duration
     duration = config["duration"]
     cmd += ["-a", f"duration:{duration}"]
 
-    # 输出文件
+    # Output file
     if output_path:
         fmt = args.format or config["capture_format"]
         cmd += ["-w", output_path]
         if fmt == "pcap":
             cmd += ["-F", "pcap"]
 
-    # 解码规则
+    # Decode rules
     if args.decode_as:
         cmd += ["-d", args.decode_as]
 
-    # JSON Lines 输出 (使用 -T ek)
+    # JSON Lines output (using -T ek)
     if args.output_json and not args.output:
         cmd += ["-T", "ek"]
 
@@ -64,18 +64,18 @@ def build_tshark_cmd(config, args, *, output_path="", include_display_filter=Tru
 
 
 def main():
-    parser = argparse.ArgumentParser(description="tshark 抓包")
-    parser.add_argument("--interface", "-i", help="抓包接口")
-    parser.add_argument("--duration", type=int, help="抓包时长(秒)")
-    parser.add_argument("--capture-filter", "-f", help="抓包过滤器(BPF)")
-    parser.add_argument("--display-filter", "-Y", help="显示过滤器")
-    parser.add_argument("--output", "-o", default="", help="保存抓包文件路径")
-    parser.add_argument("--format", choices=["pcapng", "pcap"], help="抓包文件格式")
-    parser.add_argument("--decode-as", default="", help="自定义解码规则")
-    parser.add_argument("--json", action="store_true", dest="output_json", help="JSON Lines 输出")
+    parser = argparse.ArgumentParser(description="tshark packet capture")
+    parser.add_argument("--interface", "-i", help="Capture interface")
+    parser.add_argument("--duration", type=int, help="Capture duration in seconds")
+    parser.add_argument("--capture-filter", "-f", help="Capture filter (BPF)")
+    parser.add_argument("--display-filter", "-Y", help="Display filter")
+    parser.add_argument("--output", "-o", default="", help="Path to save capture file")
+    parser.add_argument("--format", choices=["pcapng", "pcap"], help="Capture file format")
+    parser.add_argument("--decode-as", default="", help="Custom decode rule")
+    parser.add_argument("--json", action="store_true", dest="output_json", help="JSON Lines output")
     args = parser.parse_args()
 
-    # 获取配置
+    # Get configuration
     config, sources = get_net_config(
         cli_interface=args.interface,
         cli_duration=args.duration,
@@ -91,7 +91,7 @@ def main():
             "action": "capture",
             "error": {
                 "code": "tshark_not_found",
-                "message": f"未找到 tshark ({exe})，请确认 Wireshark 已安装且已加入 PATH",
+                "message": f"tshark not found ({exe}). Please ensure Wireshark is installed and added to PATH",
             },
         }
         print(json.dumps(error, ensure_ascii=False, indent=2))
@@ -104,13 +104,13 @@ def main():
             "action": "capture",
             "error": {
                 "code": "no_interface",
-                "message": "未配置抓包接口，请用 --interface 指定或在 .embeddedskills/config.json 中配置",
+                "message": "Capture interface not configured. Specify with --interface or configure in .embeddedskills/config.json",
             },
         }
         print(json.dumps(error, ensure_ascii=False, indent=2))
         sys.exit(1)
 
-    # 保存确认的配置
+    # Save confirmed configuration
     save_project_config(values={
         "interface": iface,
         "duration": config["duration"],
@@ -137,16 +137,16 @@ def main():
     )
     duration = config["duration"]
 
-    print(f"[net capture] 接口={iface}, 时长={duration}s", file=sys.stderr)
+    print(f"[net capture] interface={iface}, duration={duration}s", file=sys.stderr)
     if config.get("capture_filter"):
-        print(f"  抓包过滤器: {config['capture_filter']}", file=sys.stderr)
+        print(f"  Capture filter: {config['capture_filter']}", file=sys.stderr)
     if config.get("display_filter"):
-        print(f"  显示过滤器: {config['display_filter']}", file=sys.stderr)
+        print(f"  Display filter: {config['display_filter']}", file=sys.stderr)
     if args.output:
-        print(f"  输出文件: {args.output}", file=sys.stderr)
+        print(f"  Output file: {args.output}", file=sys.stderr)
         if filter_after_capture:
-            print("  保存策略: 先原始抓包，再按显示过滤器离线筛选", file=sys.stderr)
-    print(f"  命令: {' '.join(cmd)}", file=sys.stderr)
+            print("  Save strategy: raw capture first, then filter offline with display filter", file=sys.stderr)
+    print(f"  Command: {' '.join(cmd)}", file=sys.stderr)
 
     try:
         proc = subprocess.Popen(
@@ -165,7 +165,7 @@ def main():
                 "action": "capture",
                 "error": {
                     "code": "capture_failed",
-                    "message": stderr_output.strip() or f"tshark 退出码 {proc.returncode}",
+                    "message": stderr_output.strip() or f"tshark exit code {proc.returncode}",
                 },
             }
             print(json.dumps(error, ensure_ascii=False, indent=2))
@@ -191,7 +191,7 @@ def main():
                     "action": "capture",
                     "error": {
                         "code": "capture_filter_failed",
-                        "message": filtered_stderr.strip() or f"过滤失败，退出码 {filtered.returncode}",
+                        "message": filtered_stderr.strip() or f"Filter failed, exit code {filtered.returncode}",
                     },
                 }
                 print(json.dumps(error, ensure_ascii=False, indent=2))
@@ -202,16 +202,16 @@ def main():
         if stderr_output.strip():
             print(stderr_output, file=sys.stderr)
 
-        # 输出摘要
-        summary = {"status": "ok", "action": "capture", "summary": f"抓包完成，时长 {duration}s"}
+        # Output summary
+        summary = {"status": "ok", "action": "capture", "summary": f"Capture complete, duration {duration}s"}
         if args.output and os.path.exists(args.output):
             size = os.path.getsize(args.output)
-            summary["summary"] += f"，文件: {args.output} ({size} bytes)"
+            summary["summary"] += f", file: {args.output} ({size} bytes)"
             summary["details"] = {"output_file": args.output, "file_size": size}
 
         print(json.dumps(summary, ensure_ascii=False, indent=2), file=sys.stderr)
 
-        # 更新状态
+        # Update state
         update_state_entry("last_observe", {
             "type": "net_capture",
             "interface": iface,
@@ -221,7 +221,7 @@ def main():
 
     except KeyboardInterrupt:
         proc.terminate()
-        print("\n[net capture] 用户中断抓包", file=sys.stderr)
+        print("\n[net capture] User interrupted capture", file=sys.stderr)
     except Exception as e:
         error = {
             "status": "error",

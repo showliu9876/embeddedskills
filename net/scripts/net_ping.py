@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""连通性测试工具，支持 ICMP/TCP ping、批量测试和路由追踪。"""
+"""Connectivity test tool, supporting ICMP/TCP ping, batch testing, and route tracing."""
 
 import argparse
 import io
@@ -23,14 +23,14 @@ from net_runtime import (
 
 
 def icmp_ping(target, count=4, timeout_ms=1000):
-    """使用系统 ping 命令做 ICMP 测试。"""
+    """Use system ping command to perform ICMP test."""
     timeout_sec = max(1, timeout_ms // 1000)
     cmd = ["ping", "-n", str(count), "-w", str(timeout_ms), target]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, encoding="gbk",
                                 errors="replace", timeout=count * timeout_sec + 10)
     except (FileNotFoundError, subprocess.TimeoutExpired):
-        return {"target": target, "reachable": False, "error": "ping 命令超时或不可用"}
+        return {"target": target, "reachable": False, "error": "ping command timed out or unavailable"}
 
     output = result.stdout
     reachable = False
@@ -38,8 +38,8 @@ def icmp_ping(target, count=4, timeout_ms=1000):
     avg_ms = None
 
     for line in output.splitlines():
-        # 统计行
-        m = re.search(r"已发送\s*=\s*(\d+).*已接收\s*=\s*(\d+)", line)
+        # Summary line
+        m = re.search(r"\u5df2\u53d1\u9001\s*=\s*(\d+).*\u5df2\u63a5\u6536\s*=\s*(\d+)", line)
         if not m:
             m = re.search(r"Sent\s*=\s*(\d+).*Received\s*=\s*(\d+)", line, re.IGNORECASE)
         if m:
@@ -47,8 +47,8 @@ def icmp_ping(target, count=4, timeout_ms=1000):
             received = int(m.group(2))
             reachable = received > 0
 
-        # 平均延迟
-        m2 = re.search(r"平均\s*=\s*(\d+)ms", line)
+        # Average latency
+        m2 = re.search(r"\u5e73\u5747\s*=\s*(\d+)ms", line)
         if not m2:
             m2 = re.search(r"Average\s*=\s*(\d+)ms", line, re.IGNORECASE)
         if m2:
@@ -65,7 +65,7 @@ def icmp_ping(target, count=4, timeout_ms=1000):
 
 
 def tcp_ping(target, port, timeout_ms=1000):
-    """TCP 连通性测试。"""
+    """TCP connectivity test."""
     timeout_sec = timeout_ms / 1000.0
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -80,14 +80,14 @@ def tcp_ping(target, port, timeout_ms=1000):
 
 
 def traceroute(target, timeout_ms=1000):
-    """路由追踪。"""
+    """Route tracing."""
     timeout_sec = max(1, timeout_ms // 1000)
     cmd = ["tracert", "-d", "-w", str(timeout_ms), "-h", "30", target]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, encoding="gbk",
                                 errors="replace", timeout=60)
     except (FileNotFoundError, subprocess.TimeoutExpired):
-        return {"target": target, "hops": [], "error": "tracert 超时或不可用"}
+        return {"target": target, "hops": [], "error": "tracert timed out or unavailable"}
 
     hops = []
     for line in result.stdout.splitlines():
@@ -102,17 +102,17 @@ def traceroute(target, timeout_ms=1000):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="连通性测试")
-    parser.add_argument("--target", "-t", help="目标地址")
-    parser.add_argument("--tcp", type=int, default=0, help="TCP 端口")
-    parser.add_argument("--count", type=int, default=4, help="ping 次数")
-    parser.add_argument("--traceroute", action="store_true", help="路由追踪")
-    parser.add_argument("--concurrent", type=int, default=4, help="并发线程数")
-    parser.add_argument("--timeout", type=int, help="超时(毫秒)")
-    parser.add_argument("--json", action="store_true", dest="output_json", help="JSON 输出")
+    parser = argparse.ArgumentParser(description="Connectivity test")
+    parser.add_argument("--target", "-t", help="Target address")
+    parser.add_argument("--tcp", type=int, default=0, help="TCP port")
+    parser.add_argument("--count", type=int, default=4, help="Ping count")
+    parser.add_argument("--traceroute", action="store_true", help="Trace route")
+    parser.add_argument("--concurrent", type=int, default=4, help="Concurrent thread count")
+    parser.add_argument("--timeout", type=int, help="Timeout in milliseconds")
+    parser.add_argument("--json", action="store_true", dest="output_json", help="Output JSON format")
     args = parser.parse_args()
 
-    # 获取配置
+    # Get configuration
     config, sources = get_net_config(
         cli_target=args.target,
         cli_timeout_ms=args.timeout,
@@ -125,18 +125,18 @@ def main():
         error = {
             "status": "error",
             "action": "ping",
-            "error": {"code": "no_target", "message": "未配置目标地址，请用 --target 指定或在 .embeddedskills/config.json 中配置"},
+            "error": {"code": "no_target", "message": "Target address not configured. Specify with --target or configure in .embeddedskills/config.json"},
         }
         print(json.dumps(error, ensure_ascii=False, indent=2))
         sys.exit(1)
 
-    # 保存确认的配置
+    # Save confirmed configuration
     save_project_config(values={
         "target": target,
         "timeout_ms": timeout_ms,
     })
 
-    # 支持逗号分隔的多目标
+    # Support comma-separated multiple targets
     targets = [t.strip() for t in target.split(",") if t.strip()]
 
     results = []
@@ -165,7 +165,7 @@ def main():
         "summary": {
             "total": total,
             "reachable": reachable_count,
-            "description": f"{reachable_count}/{total} 目标可达",
+            "description": f"{reachable_count}/{total} targets reachable",
         },
         "details": {"results": results},
     }
@@ -176,7 +176,7 @@ def main():
         print(f"[net {action}] {output['summary']['description']}")
         for r in results:
             if args.traceroute:
-                print(f"\n  追踪 {r['target']}:")
+                print(f"\n  Trace {r['target']}:")
                 for h in r.get("hops", []):
                     print(f"    {h['hop']:>3}  {h['detail']}")
             else:
@@ -185,16 +185,16 @@ def main():
                 if r.get("port"):
                     line += f":{r['port']}"
                 if r.get("avg_ms") is not None:
-                    line += f"  延迟={r['avg_ms']}ms"
+                    line += f"  latency={r['avg_ms']}ms"
                 elif r.get("latency_ms") is not None:
-                    line += f"  延迟={r['latency_ms']}ms"
+                    line += f"  latency={r['latency_ms']}ms"
                 if r.get("loss_rate"):
-                    line += f"  丢包={r['loss_rate']}"
+                    line += f"  loss={r['loss_rate']}"
                 if r.get("error"):
                     line += f"  ({r['error']})"
                 print(line)
 
-    # 更新状态
+    # Update state
     update_state_entry("last_net_ping", {
         "target": target,
         "reachable_count": reachable_count,
