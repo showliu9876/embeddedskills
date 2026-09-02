@@ -1,4 +1,4 @@
-"""J-Link one-shot GDB 源码级调试。"""
+"""J-Link one-shot source-level GDB debugging."""
 
 from __future__ import annotations
 
@@ -142,31 +142,31 @@ def cleanup(procs: list[subprocess.Popen]) -> None:
 
 
 def add_common_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--gdbserver-exe", default=None, help="J-Link GDB Server 路径（Linux: JLinkGDBServerCLExe）")
-    parser.add_argument("--gdb-exe", default=None, help="arm-none-eabi-gdb 路径")
-    parser.add_argument("--device", default=None, help="芯片型号")
-    parser.add_argument("--elf", default=None, help="ELF 文件路径")
-    parser.add_argument("--interface", default=None, help="调试接口")
-    parser.add_argument("--speed", default=None, help="调试速率 kHz")
-    parser.add_argument("--serial-no", default=None, help="探针序列号")
-    parser.add_argument("--gdb-port", type=int, default=0, help="GDB 端口，0=自动")
-    parser.add_argument("--config", default=None, help="skill config.json 路径")
-    parser.add_argument("--workspace", default=None, help="workspace 根目录，默认当前目录")
+    parser.add_argument("--gdbserver-exe", default=None, help="J-Link GDB Server path (Linux: JLinkGDBServerCLExe)")
+    parser.add_argument("--gdb-exe", default=None, help="arm-none-eabi-gdb path")
+    parser.add_argument("--device", default=None, help="chip model")
+    parser.add_argument("--elf", default=None, help="ELF file path")
+    parser.add_argument("--interface", default=None, help="debug interface")
+    parser.add_argument("--speed", default=None, help="debug speed in kHz")
+    parser.add_argument("--serial-no", default=None, help="probe serial number")
+    parser.add_argument("--gdb-port", type=int, default=0, help="GDB port, 0 = auto")
+    parser.add_argument("--config", default=None, help="skill config.json path")
+    parser.add_argument("--workspace", default=None, help="workspace root, defaults to cwd")
     parser.add_argument("--json", action="store_true", dest="as_json")
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="J-Link GDB Server 调试")
+    parser = argparse.ArgumentParser(description="J-Link GDB Server debugging")
     sub = parser.add_subparsers(dest="command")
     for name in ALL_COMMANDS:
         sub_parser = sub.add_parser(name, help=f"GDB {name}")
         add_common_args(sub_parser)
         if name == "run":
-            sub_parser.add_argument("--commands", nargs="+", required=True, help="GDB 命令序列")
+            sub_parser.add_argument("--commands", nargs="+", required=True, help="GDB command sequence")
         elif name in {"break", "frame", "print", "watch"}:
-            sub_parser.add_argument("--expr", required=True, help="表达式或参数")
+            sub_parser.add_argument("--expr", required=True, help="expression or argument")
         elif name in {"until", "disassemble"}:
-            sub_parser.add_argument("--expr", default=None, help="表达式或参数")
+            sub_parser.add_argument("--expr", default=None, help="expression or argument")
     return parser
 
 
@@ -186,8 +186,8 @@ def _state_lookup(state: dict) -> dict:
 
 
 def resolve_device_params(args, project_config: dict, state_lookup: dict) -> dict:
-    """解析 device/interface/speed 参数，优先级: CLI > 工程配置 > state.json > default"""
-    # device: CLI > 工程配置 > state > 报错
+    """Resolve device/interface/speed. Priority: CLI > project config > state.json > default"""
+    # device: CLI > project config > state > error
     device = args.device
     device_source = "cli"
     if is_missing(device):
@@ -197,7 +197,7 @@ def resolve_device_params(args, project_config: dict, state_lookup: dict) -> dic
         device = state_lookup.get("device")
         device_source = "state"
 
-    # interface: CLI > 工程配置 > state > 默认 SWD
+    # interface: CLI > project config > state > default SWD
     interface = args.interface
     interface_source = "cli"
     if is_missing(interface):
@@ -210,7 +210,7 @@ def resolve_device_params(args, project_config: dict, state_lookup: dict) -> dic
         interface = "SWD"
         interface_source = "default"
 
-    # speed: CLI > 工程配置 > state > 默认 4000
+    # speed: CLI > project config > state > default 4000
     speed = args.speed
     speed_source = "cli"
     if is_missing(speed):
@@ -235,16 +235,16 @@ def resolve_device_params(args, project_config: dict, state_lookup: dict) -> dic
 
 def _summary(command: str, parsed: dict) -> str:
     if command == "continue" and parsed.get("timed_out"):
-        return "continue 已执行，目标在超时窗口内未停下"
+        return "continue executed, target did not stop within the timeout window"
     if command == "backtrace" and parsed.get("frames"):
-        return f"backtrace 完成，frames={len(parsed['frames'])}"
+        return f"backtrace complete, frames={len(parsed['frames'])}"
     if command == "locals" and parsed.get("variables"):
-        return f"locals 完成，variables={len(parsed['variables'])}"
+        return f"locals complete, variables={len(parsed['variables'])}"
     if command == "threads" and parsed.get("threads"):
-        return f"threads 完成，threads={len(parsed['threads'])}"
+        return f"threads complete, threads={len(parsed['threads'])}"
     if command == "print" and parsed.get("value"):
-        return f"print 完成，value={parsed['value']}"
-    return f"gdb {command} 完成"
+        return f"print complete, value={parsed['value']}"
+    return f"gdb {command} complete"
 
 
 def _metrics(parsed: dict) -> dict:
@@ -278,7 +278,7 @@ def main() -> None:
     state_lookup = _state_lookup(state)
     project_config = load_project_config(str(workspace))
 
-    # 解析 device/interface/speed 参数
+    # Resolve device/interface/speed parameters
     dev_params = resolve_device_params(args, project_config, state_lookup)
 
     parameter_sources: dict[str, str] = {}
@@ -300,11 +300,11 @@ def main() -> None:
             install_dir_candidates=(),
             required=True,
         )
-        # device 从工程配置或 state 解析
+        # Resolve device from project config or state
         device = dev_params["device"]
         parameter_sources["device"] = dev_params["device_source"]
         if is_missing(device):
-            raise ValueError("缺少必要参数: device")
+            raise ValueError("missing required parameter: device")
 
         elf_file, parameter_sources["elf"] = resolve_param(
             "elf",
@@ -346,11 +346,11 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {exc}", file=sys.stderr)
+            print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
     if not os.path.isfile(gdbserver_exe):
-        message = f"J-Link GDB Server (JLinkGDBServerCLExe) 不存在: {gdbserver_exe}"
+        message = f"J-Link GDB Server (JLinkGDBServerCLExe) not found: {gdbserver_exe}"
         result = make_result(
             status="error",
             action=args.command,
@@ -363,11 +363,11 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {message}", file=sys.stderr)
+            print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
 
     if not os.path.isfile(gdb_exe):
-        message = f"arm-none-eabi-gdb 不存在: {gdb_exe}"
+        message = f"arm-none-eabi-gdb not found: {gdb_exe}"
         result = make_result(
             status="error",
             action=args.command,
@@ -380,7 +380,7 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {message}", file=sys.stderr)
+            print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
 
     procs: list[subprocess.Popen] = []
@@ -400,7 +400,7 @@ def main() -> None:
             result = make_result(
                 status="error",
                 action=args.command,
-                summary="GDB Server 启动失败",
+                summary="GDB Server failed to start",
                 details={"device": device, "server_output": server_output},
                 context=parameter_context(
                     provider="jlink",
@@ -408,13 +408,13 @@ def main() -> None:
                     parameter_sources=parameter_sources,
                     config_path=config_path,
                 ),
-                error={"code": "gdbserver_failed", "message": server_output or "GDB Server 启动失败"},
+                error={"code": "gdbserver_failed", "message": server_output or "GDB Server failed to start"},
                 timing=make_timing(started_at, (time.time() - started_ts) * 1000),
             )
             if args.as_json:
                 output_json(result)
             else:
-                print(f"[gdb-{args.command}] 失败 — {result['error']['message']}", file=sys.stderr)
+                print(f"[gdb-{args.command}] failed — {result['error']['message']}", file=sys.stderr)
             sys.exit(1)
 
         try:
@@ -440,7 +440,7 @@ def main() -> None:
             if args.as_json:
                 output_json(result)
             else:
-                print(f"错误: {exc}", file=sys.stderr)
+                print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
 
         gdb_result = run_gdb_commands(gdb_exe, elf_file or "", f"localhost:{gdb_port}", gdb_commands)
@@ -490,14 +490,14 @@ def main() -> None:
                 artifacts=artifacts,
                 metrics=_metrics(parsed),
                 state=state_info,
-                next_actions=["目标已继续运行，如需停下请再次执行 halt/backtrace/run"],
+                next_actions=["target is running again; run halt/backtrace/run again to stop it"],
                 timing=make_timing(started_at, elapsed_ms),
             )
         elif gdb_result["status"] == "error" or gdb_result["status"] == "timeout":
             result = make_result(
                 status="error",
                 action=args.command,
-                summary="GDB 执行失败",
+                summary="GDB execution failed",
                 details={"device": device, "gdb_port": gdb_port},
                 context=parameter_context(
                     provider="jlink",
@@ -506,7 +506,7 @@ def main() -> None:
                     config_path=config_path,
                 ),
                 artifacts=build_artifacts(debug_file=elf_file),
-                error={"code": "gdb_error", "message": gdb_result.get("error", gdb_result.get("stderr", "GDB 执行失败"))},
+                error={"code": "gdb_error", "message": gdb_result.get("error", gdb_result.get("stderr", "GDB execution failed"))},
                 timing=make_timing(started_at, elapsed_ms),
             )
         else:
@@ -526,7 +526,7 @@ def main() -> None:
                 },
                 str(workspace),
             )
-            # 写回确认过的参数到工程配置
+            # Write the confirmed params back to project config
             save_project_config(str(workspace), {
                 "device": device,
                 "interface": interface or "SWD",
@@ -554,7 +554,7 @@ def main() -> None:
                 artifacts=artifacts,
                 metrics=_metrics(parsed),
                 state=state_info,
-                next_actions=["可继续基于 last_debug 复用 device/debug_file"],
+                next_actions=["can continue reusing device/debug_file from last_debug"],
                 timing=make_timing(started_at, elapsed_ms),
             )
 
@@ -566,7 +566,7 @@ def main() -> None:
             if output:
                 print(output)
         else:
-            print(f"[gdb-{args.command}] 失败 — {result['error']['message']}", file=sys.stderr)
+            print(f"[gdb-{args.command}] failed — {result['error']['message']}", file=sys.stderr)
             sys.exit(1)
     finally:
         cleanup(procs)

@@ -1,4 +1,4 @@
-"""jlink skill 私有 GDB 工具。"""
+"""Private GDB helpers for the jlink skill."""
 
 from __future__ import annotations
 
@@ -64,15 +64,15 @@ def run_gdb_commands(gdb_exe: str, elf_file: str, target_remote: str, commands: 
             "stdout": combined_output,
             "stderr": stderr,
             "returncode": None,
-            "error": f"GDB 执行超时({timeout}s)",
+            "error": f"GDB timed out ({timeout}s)",
         }
-    except Exception as exc:  # pragma: no cover - 兜底异常
+    except Exception as exc:  # pragma: no cover - catch-all guard
         return {"status": "error", "error": str(exc)}
 
 
 def require_action_expr(action: str, expr: str | None, hint: str) -> str:
     if not expr:
-        raise ValueError(f"{action} 必须提供 {hint}")
+        raise ValueError(f"{action} requires {hint}")
     return expr
 
 
@@ -82,7 +82,7 @@ def build_gdb_commands(action: str, expr: str | None = None, *, halt_before: boo
         commands.append("monitor halt")
 
     if action == "run":
-        raise ValueError("run 需要由调用方直接提供 commands")
+        raise ValueError("run requires the caller to supply commands directly")
     if action == "backtrace":
         commands.append("backtrace")
     elif action == "locals":
@@ -100,7 +100,7 @@ def build_gdb_commands(action: str, expr: str | None = None, *, halt_before: boo
     elif action == "until":
         commands.append(f"until {expr}" if expr else "until")
     elif action == "frame":
-        commands.append(f"frame {require_action_expr(action, expr, '--expr <帧号>')}")
+        commands.append(f"frame {require_action_expr(action, expr, '--expr <frame number>')}")
     elif action == "print":
         commands.append(f"print {require_action_expr(action, expr, '--expr')}")
     elif action == "watch":
@@ -121,7 +121,7 @@ def build_gdb_commands(action: str, expr: str | None = None, *, halt_before: boo
             ]
         )
     else:
-        raise ValueError(f"未知 GDB 子命令: {action}")
+        raise ValueError(f"unknown GDB subcommand: {action}")
 
     return commands
 

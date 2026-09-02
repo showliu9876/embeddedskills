@@ -1,4 +1,4 @@
-"""J-Link 设备探测、烧录、内存读写、寄存器查看、复位、在线调试"""
+"""J-Link device probing, flashing, memory read/write, register inspection, reset, and on-target debugging."""
 
 import argparse
 import json
@@ -10,7 +10,7 @@ import tempfile
 import time
 from pathlib import Path
 
-# 添加 runtime 模块路径
+# Add runtime module path
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
@@ -30,7 +30,7 @@ from jlink_runtime import (
     resolve_tool_param,
 )
 
-# J-Link Commander 命令模板
+# J-Link Commander command templates
 TEMPLATES = {
     "info": "si {interface}\nspeed {speed}\nconnect\nsleep 200\nexit\n",
     "flash_hex": "si {interface}\nspeed {speed}\nconnect\nloadfile {file}\nr\ng\nexit\n",
@@ -45,20 +45,20 @@ TEMPLATES = {
     "run_to": "si {interface}\nspeed {speed}\nconnect\nSetBP {address}\ng\nsleep {timeout_ms}\nhalt\nregs\nexit\n",
 }
 
-# 错误模式匹配
+# Error pattern matching
 ERROR_PATTERNS = [
-    (r"Cannot connect to target", "cannot_connect_target", "无法连接目标芯片，请检查连线、供电和接口类型"),
-    (r"Could not find core", "core_not_found", "未找到内核，请确认 device 是否匹配目标芯片"),
-    (r"No J-Link found", "no_jlink_found", "未检测到 J-Link 探针，请确认 USB 连接和驱动"),
-    (r"Multiple J-Links found", "multiple_jlinks", "检测到多个 J-Link 探针，请通过 --serial-no 指定序列号"),
-    (r"Could not open file", "file_not_found", "无法打开固件文件，请确认路径正确"),
-    (r"Unknown device", "unknown_device", "未知芯片型号，请确认 --device 参数"),
-    (r"VTarget too low", "vtarget_low", "目标电压过低，请检查目标板供电"),
+    (r"Cannot connect to target", "cannot_connect_target", "Cannot connect to target chip. Check wiring, power supply, and interface type."),
+    (r"Could not find core", "core_not_found", "Could not find core. Confirm that device matches target chip."),
+    (r"No J-Link found", "no_jlink_found", "No J-Link probe detected. Confirm USB connection and driver."),
+    (r"Multiple J-Links found", "multiple_jlinks", "Multiple J-Link probes detected. Specify serial number via --serial-no."),
+    (r"Could not open file", "file_not_found", "Could not open firmware file. Confirm that the path is correct."),
+    (r"Unknown device", "unknown_device", "Unknown chip device model. Confirm --device parameter."),
+    (r"VTarget too low", "vtarget_low", "Target voltage too low. Check target board power supply."),
 ]
 
 
 def build_jlink_cmd(exe: str, device: str, script_path: str, serial_no: str = "") -> list:
-    """构建 J-Link Commander 命令行"""
+    """Build J-Link Commander command line."""
     cmd = [exe, "-NoGui", "1", "-ExitOnError", "1", "-AutoConnect", "1"]
     cmd.extend(["-Device", device])
     if serial_no:
@@ -68,9 +68,9 @@ def build_jlink_cmd(exe: str, device: str, script_path: str, serial_no: str = ""
 
 
 def parse_registers(stdout: str) -> dict:
-    """从 JLink 输出中解析寄存器值"""
+    """Parse register values from JLink output."""
     registers = {}
-    # 匹配 "REG = HEXVALUE" 或 "REG= HEXVALUE" 格式
+    # Match "REG = HEXVALUE" or "REG= HEXVALUE" format
     reg_lines = re.findall(r"(\w+)\s*=\s*([0-9A-Fa-f]{8})", stdout)
     if reg_lines:
         registers = {name: f"0x{val}" for name, val in reg_lines}
@@ -78,21 +78,21 @@ def parse_registers(stdout: str) -> dict:
 
 
 def parse_pc(stdout: str) -> str:
-    """从输出中提取 PC 值"""
+    """Extract PC value from output."""
     m = re.search(r"PC\s*=\s*([0-9A-Fa-f]{8})", stdout)
     return f"0x{m.group(1)}" if m else ""
 
 
 def parse_output(stdout: str, action: str) -> dict:
-    """解析 J-Link Commander 输出，提取关键信息"""
+    """Parse J-Link Commander output and extract key information."""
     result = {"raw": stdout}
 
-    # 检查错误模式
+    # Check error patterns
     for pattern, code, message in ERROR_PATTERNS:
         if re.search(pattern, stdout, re.IGNORECASE):
             return {"error_code": code, "error_message": message, "raw": stdout}
 
-    # info: 提取固件版本和目标信息
+    # info: extract firmware version and target info
     if action == "info":
         fw = re.search(r"Firmware:\s+(.+)", stdout)
         sn = re.search(r"S/N:\s+(\d+)", stdout)
@@ -107,7 +107,7 @@ def parse_output(stdout: str, action: str) -> dict:
         if device_match:
             result["device"] = device_match.group(1)
 
-    # flash: 提取烧录信息
+    # flash: extract flashing info
     elif action == "flash":
         speed = re.search(r"Downloading\s+\d+\s+bytes?\s.*?(\d+\.\d+)\s*KB/s", stdout)
         if speed:
@@ -115,7 +115,7 @@ def parse_output(stdout: str, action: str) -> dict:
         if "O.K." in stdout or "Verify successful" in stdout or "Download verified successfully" in stdout:
             result["verified"] = True
 
-    # read-mem: 提取内存数据
+    # read-mem: extract memory data
     elif action == "read-mem":
         mem_lines = re.findall(r"^([0-9A-Fa-f]{8}) = (.+)$", stdout, re.MULTILINE)
         if mem_lines:
@@ -124,15 +124,15 @@ def parse_output(stdout: str, action: str) -> dict:
                 cleaned = data.strip()
                 result["memory"].append({"address": f"0x{addr}", "data": cleaned})
 
-    # regs / halt: 提取寄存器值
+    # regs / halt: extract register values
     elif action in ("regs", "halt"):
         regs = parse_registers(stdout)
         if regs:
             result["registers"] = regs
 
-    # step: 提取执行的指令和寄存器
+    # step: extract executed instructions and registers
     elif action == "step":
-        # 匹配 step 输出: ADDR: OPCODE INSTRUCTION
+        # Match step output: ADDR: OPCODE INSTRUCTION
         instructions = re.findall(
             r"^([0-9A-Fa-f]{8}):\s+([0-9A-Fa-f ]+?)\s{2,}(.+)$", stdout, re.MULTILINE
         )
@@ -148,18 +148,18 @@ def parse_output(stdout: str, action: str) -> dict:
         if regs:
             result["registers"] = regs
 
-    # run-to: 提取断点命中状态和寄存器
+    # run-to: extract breakpoint hit status and registers
     elif action == "run-to":
         m = re.search(r"Breakpoint set @ addr 0x([0-9A-Fa-f]+)\s*\(Handle = (\d+)\)", stdout)
         if m:
             result["bp_address"] = f"0x{m.group(1)}"
             result["bp_handle"] = int(m.group(2))
         elif "Could not set" in stdout:
-            return {"error_code": "bp_set_failed", "error_message": "断点设置失败，可能硬件断点槽已满", "raw": stdout}
+            return {"error_code": "bp_set_failed", "error_message": "Breakpoint set failed; hardware breakpoint slots may be full", "raw": stdout}
         regs = parse_registers(stdout)
         if regs:
             result["registers"] = regs
-        # 判断是否命中断点（PC == 断点地址）
+        # Determine if breakpoint was hit (PC == breakpoint address)
         pc = parse_pc(stdout)
         if m and pc:
             bp_addr = f"0x{m.group(1)}"
@@ -173,17 +173,17 @@ def run_jlink(exe: str, device: str, action: str, interface: str = "SWD",
               address: str = "", length: str = "256", value: str = "",
               width: str = "32", step_count: int = 1,
               timeout_ms: str = "2000") -> dict:
-    """执行 JLink Commander 命令"""
+    """Execute JLink Commander commands."""
     start_time = time.time()
 
-    # 选择模板
+    # Select template
     if action == "flash":
         if file.lower().endswith(".bin"):
             if not address:
                 return {
                     "status": "error",
                     "action": action,
-                    "error": {"code": "missing_address", "message": ".bin 文件必须提供 --address 烧录地址"},
+                    "error": {"code": "missing_address", "message": ".bin file requires flash address via --address"},
                 }
             template = TEMPLATES["flash_bin"]
         else:
@@ -196,26 +196,26 @@ def run_jlink(exe: str, device: str, action: str, interface: str = "SWD",
             return {
                 "status": "error",
                 "action": action,
-                "error": {"code": "unknown_action", "message": f"未知子命令: {action}"},
+                "error": {"code": "unknown_action", "message": f"Unknown subcommand: {action}"},
             }
 
-    # width 映射
+    # width mapping
     width_map = {"8": "8", "16": "16", "32": "32"}
     w = width_map.get(width, "32")
 
-    # step 命令: 生成多条 step 指令
+    # step command: generate multiple step instructions
     step_commands = ""
     if action == "step":
         step_commands = "".join(["step\n" for _ in range(step_count)])
 
-    # 渲染命令脚本
+    # Render command script
     script_content = template.format(
         interface=interface, speed=speed, file=file,
         address=address, length=length, value=value, width=w,
         step_commands=step_commands, timeout_ms=timeout_ms,
     )
 
-    # 写入临时文件
+    # Write to temporary file
     with tempfile.NamedTemporaryFile(mode="w", suffix=".jlink", delete=False, encoding="utf-8") as f:
         f.write(script_content)
         script_path = f.name
@@ -225,14 +225,14 @@ def run_jlink(exe: str, device: str, action: str, interface: str = "SWD",
             return {
                 "status": "error",
                 "action": action,
-                "error": {"code": "exe_not_found", "message": f"J-Link Commander (JLinkExe) 不存在: {exe}"},
+                "error": {"code": "exe_not_found", "message": f"J-Link Commander (JLinkExe) not found: {exe}"},
             }
 
         if file and not os.path.isfile(file):
             return {
                 "status": "error",
                 "action": action,
-                "error": {"code": "file_not_found", "message": f"固件文件不存在: {file}"},
+                "error": {"code": "file_not_found", "message": f"Firmware file not found: {file}"},
             }
 
         cmd = build_jlink_cmd(exe, device, script_path, serial_no)
@@ -246,7 +246,7 @@ def run_jlink(exe: str, device: str, action: str, interface: str = "SWD",
             return {
                 "status": "error",
                 "action": action,
-                "error": {"code": "timeout", "message": "JLinkExe 执行超时(120s)"},
+                "error": {"code": "timeout", "message": "JLinkExe execution timed out (120s)"},
             }
         except Exception as e:
             return {
@@ -266,27 +266,27 @@ def run_jlink(exe: str, device: str, action: str, interface: str = "SWD",
                 "details": {"device": device, "elapsed_ms": elapsed_ms, "errorlevel": proc.returncode},
             }
 
-        # 构建摘要
+        # Build summary
         summary_map = {
-            "info": "探测成功",
-            "flash": "烧录成功",
-            "read-mem": "内存读取成功",
-            "write-mem": "内存写入成功",
-            "regs": "寄存器读取成功",
-            "reset": "复位成功",
-            "halt": f"已暂停，PC={parse_pc(proc.stdout)}",
-            "go": "已恢复运行",
-            "step": f"单步{step_count}次，PC={parse_pc(proc.stdout)}",
-            "run-to": f"运行至断点，PC={parse_pc(proc.stdout)}",
+            "info": "Probe successful",
+            "flash": "Flash successful",
+            "read-mem": "Memory read successful",
+            "write-mem": "Memory write successful",
+            "regs": "Registers read successful",
+            "reset": "Reset successful",
+            "halt": f"Halted, PC={parse_pc(proc.stdout)}",
+            "go": "Resumed execution",
+            "step": f"Stepped {step_count} time(s), PC={parse_pc(proc.stdout)}",
+            "run-to": f"Ran to breakpoint, PC={parse_pc(proc.stdout)}",
         }
-        summary = summary_map.get(action, "执行成功")
+        summary = summary_map.get(action, "Execution successful")
 
-        # 补充 run-to 摘要
+        # Supplement run-to summary
         if action == "run-to" and "bp_hit" in parsed:
             if parsed["bp_hit"]:
-                summary = f"断点命中 @ {parsed['bp_address']}，PC={parse_pc(proc.stdout)}"
+                summary = f"Breakpoint hit @ {parsed['bp_address']}, PC={parse_pc(proc.stdout)}"
             else:
-                summary = f"超时未命中断点 @ {parsed.get('bp_address', '?')}，当前 PC={parse_pc(proc.stdout)}"
+                summary = f"Timed out without hitting breakpoint @ {parsed.get('bp_address', '?')}, current PC={parse_pc(proc.stdout)}"
 
         details = {
             "device": device,
@@ -298,18 +298,18 @@ def run_jlink(exe: str, device: str, action: str, interface: str = "SWD",
         if serial_no:
             details["serial_no"] = serial_no
 
-        # 合并解析结果
+        # Merge parsed results
         for k, v in parsed.items():
             if k != "raw":
                 details[k] = v
 
-        # 判断状态: returncode!=0 可能只是警告，需结合输出判断
+        # Determine status: non-zero returncode may just be a warning, evaluate based on output
         if proc.returncode != 0 and "error_code" not in parsed:
             if action == "flash" and parsed.get("verified"):
                 status = "ok"
             else:
                 status = "error"
-                summary = f"执行返回非零退出码: {proc.returncode}"
+                summary = f"Execution returned non-zero exit code: {proc.returncode}"
         else:
             status = "ok"
 
@@ -338,22 +338,22 @@ ALL_ACTIONS = [
 
 
 def resolve_device_params(args):
-    """解析 exe/device/interface/speed/serial_no 参数。
+    """Resolve exe/device/interface/speed/serial_no parameters.
 
-    优先级:
-    - exe / serial_no: CLI > 环境级配置
-    - device / interface / speed: CLI > 工程配置 > state.json > 默认值
+    Priority:
+    - exe / serial_no: CLI > machine-level configuration
+    - device / interface / speed: CLI > project configuration > state.json > defaults
     """
     workspace = workspace_root(args.workspace)
     local_config = load_local_config(__file__)
     project_config = load_project_config(str(workspace))
     state = load_workspace_state(str(workspace))
 
-    # 从 state 获取历史值
+    # Get historical values from state
     last_flash = get_state_entry(state, "last_flash")
     last_debug = get_state_entry(state, "last_debug")
 
-    # device: CLI > 工程配置 > state > 报错
+    # device: CLI > project config > state > error
     device = args.device
     device_source = "cli"
     if is_missing(device):
@@ -363,7 +363,7 @@ def resolve_device_params(args):
         device = last_flash.get("device") or last_debug.get("device")
         device_source = "state"
 
-    # interface: CLI > 工程配置 > state > 默认 SWD
+    # interface: CLI > project config > state > default SWD
     interface = args.interface
     interface_source = "cli"
     if is_missing(interface):
@@ -376,7 +376,7 @@ def resolve_device_params(args):
         interface = "SWD"
         interface_source = "default"
 
-    # speed: CLI > 工程配置 > state > 默认 4000
+    # speed: CLI > project config > state > default 4000
     speed = args.speed
     speed_source = "cli"
     if is_missing(speed):
@@ -389,7 +389,7 @@ def resolve_device_params(args):
         speed = "4000"
         speed_source = "default"
 
-    # exe: CLI > 环境级配置 > PATH > 常见安装目录
+    # exe: CLI > machine-level config > PATH > common install directories
     exe, exe_source = resolve_tool_param(
         "exe",
         args.exe,
@@ -398,7 +398,7 @@ def resolve_device_params(args):
         path_candidates=JLINK_CANDIDATES,
     )
 
-    # serial_no: CLI > 环境级配置 > state
+    # serial_no: CLI > machine-level config > state
     serial_no = args.serial_no
     serial_no_source = "cli"
     if is_missing(serial_no):
@@ -423,84 +423,84 @@ def resolve_device_params(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="J-Link 设备探测/烧录/内存读写/寄存器/复位/在线调试")
+    parser = argparse.ArgumentParser(description="J-Link device probe/flash/memory read-write/registers/reset/on-target debugging")
     parser.add_argument("action", choices=ALL_ACTIONS)
-    parser.add_argument("--exe", default="", help="J-Link Commander 路径（Linux: JLinkExe）")
-    parser.add_argument("--device", default=None, help="芯片型号（如 STM32F407VG）")
-    parser.add_argument("--interface", default=None, help="调试接口")
-    parser.add_argument("--speed", default=None, help="调试速率 kHz")
-    parser.add_argument("--serial-no", default="", help="探针序列号")
-    parser.add_argument("--file", default="", help="固件文件路径（flash 用）")
-    parser.add_argument("--address", default="", help="地址（flash .bin / read-mem / write-mem / bp-set 用）")
-    parser.add_argument("--length", default="256", help="读取长度（read-mem 用）")
-    parser.add_argument("--value", default="", help="写入值（write-mem 用）")
-    parser.add_argument("--width", default="32", choices=["8", "16", "32"], help="数据宽度")
-    parser.add_argument("--count", type=int, default=1, help="单步次数（step 用）")
-    parser.add_argument("--timeout-ms", default="2000", help="run-to 等待断点命中的超时毫秒数")
-    parser.add_argument("--workspace", default=None, help="workspace 根目录，默认当前目录")
+    parser.add_argument("--exe", default="", help="J-Link Commander path (Linux: JLinkExe)")
+    parser.add_argument("--device", default=None, help="Target chip model (e.g. STM32F407VG)")
+    parser.add_argument("--interface", default=None, help="Debug interface")
+    parser.add_argument("--speed", default=None, help="Debug speed in kHz")
+    parser.add_argument("--serial-no", default="", help="Probe serial number")
+    parser.add_argument("--file", default="", help="Firmware file path (for flash)")
+    parser.add_argument("--address", default="", help="Address (for flash .bin / read-mem / write-mem / bp-set)")
+    parser.add_argument("--length", default="256", help="Read length (for read-mem)")
+    parser.add_argument("--value", default="", help="Value to write (for write-mem)")
+    parser.add_argument("--width", default="32", choices=["8", "16", "32"], help="Data width")
+    parser.add_argument("--count", type=int, default=1, help="Number of steps (for step)")
+    parser.add_argument("--timeout-ms", default="2000", help="Timeout in milliseconds to wait for breakpoint hit in run-to")
+    parser.add_argument("--workspace", default=None, help="Workspace root directory, defaults to current directory")
     parser.add_argument("--json", action="store_true", dest="as_json")
 
     args = parser.parse_args()
 
-    # 解析参数
+    # Parse parameters
     params = resolve_device_params(args)
     workspace = workspace_root(args.workspace)
 
-    # 检查 device 是否已提供
+    # Check if device was provided
     if is_missing(params["device"]):
         result = {
             "status": "error", "action": args.action,
-            "error": {"code": "missing_device", "message": "必须提供 --device 芯片型号，或通过 .embeddedskills/config.json 配置"},
+            "error": {"code": "missing_device", "message": "--device chip model must be provided or configured via .embeddedskills/config.json"},
         }
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {result['error']['message']}", file=sys.stderr)
+            print(f"Error: {result['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
-    # 参数校验
+    # Parameter validation
     if args.action == "flash" and not args.file:
         result = {
             "status": "error", "action": "flash",
-            "error": {"code": "missing_file", "message": "flash 必须提供 --file 固件文件路径"},
+            "error": {"code": "missing_file", "message": "flash requires firmware file path via --file"},
         }
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {result['error']['message']}", file=sys.stderr)
+            print(f"Error: {result['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
     if args.action == "write-mem" and (not args.address or not args.value):
         result = {
             "status": "error", "action": "write-mem",
-            "error": {"code": "missing_params", "message": "write-mem 必须提供 --address 和 --value"},
+            "error": {"code": "missing_params", "message": "write-mem requires --address and --value"},
         }
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {result['error']['message']}", file=sys.stderr)
+            print(f"Error: {result['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
     if args.action == "read-mem" and not args.address:
         result = {
             "status": "error", "action": "read-mem",
-            "error": {"code": "missing_address", "message": "read-mem 必须提供 --address"},
+            "error": {"code": "missing_address", "message": "read-mem requires --address"},
         }
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {result['error']['message']}", file=sys.stderr)
+            print(f"Error: {result['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
     if args.action == "run-to" and not args.address:
         result = {
             "status": "error", "action": "run-to",
-            "error": {"code": "missing_address", "message": "run-to 必须提供 --address 断点地址"},
+            "error": {"code": "missing_address", "message": "run-to requires breakpoint address via --address"},
         }
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {result['error']['message']}", file=sys.stderr)
+            print(f"Error: {result['error']['message']}", file=sys.stderr)
         sys.exit(1)
 
     result = run_jlink(
@@ -519,14 +519,14 @@ def main():
         timeout_ms=args.timeout_ms,
     )
 
-    # 成功执行后，写回确认过的参数到工程配置
+    # Write confirmed parameters back to project config upon successful execution
     if result.get("status") == "ok":
         save_project_config(str(workspace), {
             "device": params["device"],
             "interface": params["interface"],
             "speed": params["speed"],
         })
-        # 同时更新 state.json
+        # Update state.json as well
         if args.action in ("flash", "reset", "halt", "go", "step", "run-to", "info"):
             state_action = "last_flash" if args.action == "flash" else "last_debug"
             update_state_entry(
@@ -543,7 +543,7 @@ def main():
             )
 
     if args.as_json:
-        # 添加参数来源信息
+        # Add parameter sources info
         if "details" not in result:
             result["details"] = {}
         result["details"]["parameter_sources"] = {
@@ -556,10 +556,10 @@ def main():
         output_json(result)
     else:
         if result["status"] == "ok":
-            print(f"[{args.action}] {result.get('summary', '成功')}")
+            print(f"[{args.action}] {result.get('summary', 'Success')}")
             details = result.get("details", {})
             if "registers" in details:
-                # 只显示核心寄存器
+                # Display only core registers
                 core_regs = ["PC", "R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7",
                              "R8", "R9", "R10", "R11", "R12", "MSP", "PSP", "XPSR"]
                 for name in core_regs:
@@ -572,11 +572,11 @@ def main():
                 for m in details["memory"]:
                     print(f"  {m['address']}: {m['data']}")
             if "bp_hit" in details:
-                hit = "命中" if details["bp_hit"] else "未命中（超时）"
-                print(f"  断点: {details.get('bp_address', '?')} — {hit}")
+                hit = "Hit" if details["bp_hit"] else "Missed (timed out)"
+                print(f"  Breakpoint: {details.get('bp_address', '?')} — {hit}")
         else:
             err = result.get("error", {})
-            print(f"[{args.action}] 失败 — {err.get('message', '未知错误')}", file=sys.stderr)
+            print(f"[{args.action}] failed — {err.get('message', 'Unknown error')}", file=sys.stderr)
             sys.exit(1)
 
 

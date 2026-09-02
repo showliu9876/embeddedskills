@@ -1,4 +1,4 @@
-"""J-Link RTT 日志读取。"""
+"""J-Link RTT log reader."""
 
 from __future__ import annotations
 
@@ -167,8 +167,8 @@ def _state_lookup(state: dict) -> dict:
 
 
 def resolve_device_params(args, project_config: dict, state_lookup: dict) -> dict:
-    """解析 device/interface/speed 参数，优先级: CLI > 工程配置 > state.json > default"""
-    # device: CLI > 工程配置 > state > 报错
+    """Resolve device/interface/speed parameters, priority: CLI > project config > state.json > default"""
+    # device: CLI > project config > state > error
     device = args.device
     device_source = "cli"
     if is_missing(device):
@@ -178,7 +178,7 @@ def resolve_device_params(args, project_config: dict, state_lookup: dict) -> dic
         device = state_lookup.get("device")
         device_source = "state"
 
-    # interface: CLI > 工程配置 > state > 默认 SWD
+    # interface: CLI > project config > state > default SWD
     interface = args.interface
     interface_source = "cli"
     if is_missing(interface):
@@ -191,7 +191,7 @@ def resolve_device_params(args, project_config: dict, state_lookup: dict) -> dic
         interface = "SWD"
         interface_source = "default"
 
-    # speed: CLI > 工程配置 > state > 默认 4000
+    # speed: CLI > project config > state > default 4000
     speed = args.speed
     speed_source = "cli"
     if is_missing(speed):
@@ -215,18 +215,18 @@ def resolve_device_params(args, project_config: dict, state_lookup: dict) -> dic
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="J-Link RTT 日志读取")
-    parser.add_argument("--device", default=None, help="芯片型号")
-    parser.add_argument("--gdbserver-exe", default=None, help="J-Link GDB Server 路径（Linux: JLinkGDBServerCLExe）")
-    parser.add_argument("--rtt-exe", default=None, help="J-Link RTT Client 路径（Linux: JLinkRTTClient）")
-    parser.add_argument("--interface", default=None, help="调试接口")
-    parser.add_argument("--speed", default=None, help="调试速率 kHz")
-    parser.add_argument("--serial-no", default=None, help="探针序列号")
-    parser.add_argument("--channel", type=int, default=0, help="RTT 通道")
-    parser.add_argument("--rtt-port", type=int, default=None, help="RTT Telnet 端口")
-    parser.add_argument("--duration", type=float, default=0, help="读取时长(秒)，0=持续运行")
-    parser.add_argument("--config", default=None, help="skill config.json 路径")
-    parser.add_argument("--workspace", default=None, help="workspace 根目录，默认当前目录")
+    parser = argparse.ArgumentParser(description="J-Link RTT log reader")
+    parser.add_argument("--device", default=None, help="Target chip model")
+    parser.add_argument("--gdbserver-exe", default=None, help="J-Link GDB Server path (Linux: JLinkGDBServerCLExe)")
+    parser.add_argument("--rtt-exe", default=None, help="J-Link RTT Client path (Linux: JLinkRTTClient)")
+    parser.add_argument("--interface", default=None, help="Debug interface")
+    parser.add_argument("--speed", default=None, help="Debug speed in kHz")
+    parser.add_argument("--serial-no", default=None, help="Probe serial number")
+    parser.add_argument("--channel", type=int, default=0, help="RTT channel")
+    parser.add_argument("--rtt-port", type=int, default=None, help="RTT Telnet port")
+    parser.add_argument("--duration", type=float, default=0, help="Duration to read in seconds, 0=run continuously")
+    parser.add_argument("--config", default=None, help="Path to skill config.json")
+    parser.add_argument("--workspace", default=None, help="Workspace root directory, defaults to current directory")
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args()
 
@@ -239,16 +239,16 @@ def main() -> None:
     state_lookup = _state_lookup(state)
     project_config = load_project_config(str(workspace))
 
-    # 解析 device/interface/speed 参数
+    # Resolve device/interface/speed parameters
     dev_params = resolve_device_params(args, project_config, state_lookup)
 
     parameter_sources: dict[str, str] = {}
     try:
-        # device 从工程配置或 state 解析
+        # device from project config or state
         device = dev_params["device"]
         parameter_sources["device"] = dev_params["device_source"]
         if is_missing(device):
-            raise ValueError("缺少必要参数: device")
+            raise ValueError("Missing required parameter: device")
 
         gdbserver_exe, parameter_sources["gdbserver_exe"] = resolve_tool_param(
             "gdbserver_exe",
@@ -297,11 +297,11 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {exc}", file=sys.stderr)
+            print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
     if not os.path.isfile(gdbserver_exe):
-        message = f"J-Link GDB Server (JLinkGDBServerCLExe) 不存在: {gdbserver_exe}"
+        message = f"J-Link GDB Server (JLinkGDBServerCLExe) not found: {gdbserver_exe}"
         result = make_result(
             status="error",
             action="rtt",
@@ -314,11 +314,11 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {message}", file=sys.stderr)
+            print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
 
     if not os.path.isfile(rtt_exe):
-        message = f"J-Link RTT Client (JLinkRTTClient) 不存在: {rtt_exe}"
+        message = f"J-Link RTT Client (JLinkRTTClient) not found: {rtt_exe}"
         result = make_result(
             status="error",
             action="rtt",
@@ -331,14 +331,14 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {message}", file=sys.stderr)
+            print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
 
     rtt_port_value = int(rtt_port or 19021)
     procs: list[subprocess.Popen] = []
     try:
         if not args.as_json:
-            print("正在启动 JLinkGDBServerCL ...", file=sys.stderr, flush=True)
+            print("Starting JLinkGDBServerCL ...", file=sys.stderr, flush=True)
 
         gdb_proc = start_gdbserver(
             gdbserver_exe=gdbserver_exe,
@@ -355,16 +355,16 @@ def main() -> None:
             result = make_result(
                 status="error",
                 action="rtt",
-                summary="RTT 服务启动失败",
+                summary="RTT service failed to start",
                 details={"device": device, "server_output": server_output},
                 context=parameter_context(provider="jlink", workspace=str(workspace), parameter_sources=parameter_sources, config_path=config_path),
-                error={"code": "gdbserver_failed", "message": server_output or "GDB Server 启动失败或连接超时"},
+                error={"code": "gdbserver_failed", "message": server_output or "GDB Server failed to start or connection timed out"},
                 timing=make_timing(started_at, (time.time() - started_ts) * 1000),
             )
             if args.as_json:
                 output_json(result)
             else:
-                print(f"错误: {result['error']['message']}", file=sys.stderr)
+                print(f"Error: {result['error']['message']}", file=sys.stderr)
             sys.exit(1)
 
         state_info = update_state_entry(
@@ -382,7 +382,7 @@ def main() -> None:
             },
             str(workspace),
         )
-        # 写回确认过的参数到工程配置
+        # Write confirmed parameters back to project configuration
         save_project_config(str(workspace), {
             "device": device,
             "interface": interface or "SWD",
@@ -390,14 +390,14 @@ def main() -> None:
         })
 
         if not args.as_json:
-            print("GDB Server 就绪，启动 RTT Client ...", file=sys.stderr, flush=True)
+            print("GDB Server ready, starting RTT Client ...", file=sys.stderr, flush=True)
 
         rtt_proc = start_rtt_client(rtt_exe, rtt_port_value)
         procs.append(rtt_proc)
         line_queue = start_stream_reader(rtt_proc.stdout)
 
         if not args.as_json:
-            print("RTT 输出开始（Ctrl+C 退出）:", file=sys.stderr, flush=True)
+            print("RTT output started (Ctrl+C to exit):", file=sys.stderr, flush=True)
             print("-" * 40, file=sys.stderr, flush=True)
 
         while True:
@@ -437,7 +437,7 @@ def main() -> None:
 
     except KeyboardInterrupt:
         if not args.as_json:
-            print("\n已停止 RTT 读取", file=sys.stderr, flush=True)
+            print("\nStopped RTT reading", file=sys.stderr, flush=True)
     finally:
         cleanup(procs)
 

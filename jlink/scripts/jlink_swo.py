@@ -1,8 +1,9 @@
-"""J-Link SWO 观测包装层。
+"""J-Link SWO observation wrapper.
 
-说明：
-- J-Link 不同版本的 SWO CLI 工具名和参数差异较大。
-- 本脚本不硬编码具体 viewer，可通过 --viewer-cmd 或 config.json 中的 swo_command 提供完整命令。
+Notes:
+- SWO CLI tool names and arguments vary a lot between J-Link releases.
+- This script hardcodes no specific viewer; supply the full command via
+  --viewer-cmd or the swo_command entry in config.json.
 """
 
 from __future__ import annotations
@@ -81,17 +82,18 @@ def _auto_viewer_cmd(config: dict, project_config: dict, state: dict) -> list[st
     if not device:
         return []
 
-    # JLinkSWOViewerCL 不同版本支持的参数差异很大。
-    # 这里退回到最稳妥的最小命令，只传 device，避免因 -itf/-speed 不兼容直接失败。
+    # Supported arguments differ widely between JLinkSWOViewerCL releases.
+    # Fall back to the safest minimal command (device only) so an incompatible
+    # -itf/-speed does not fail the whole run.
     return [viewer, "-device", str(device)]
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="J-Link SWO 输出捕获")
-    parser.add_argument("--viewer-cmd", nargs="+", default=None, help="完整 SWO 采集命令，例如 JLinkSWOViewerCL 的调用参数")
-    parser.add_argument("--duration", type=float, default=0, help="采集时长(秒)，0=持续运行")
-    parser.add_argument("--workspace", default=None, help="workspace 根目录，默认当前目录")
-    parser.add_argument("--config", default=None, help="skill config.json 路径")
+    parser = argparse.ArgumentParser(description="J-Link SWO output capture")
+    parser.add_argument("--viewer-cmd", nargs="+", default=None, help="full SWO capture command, e.g. the JLinkSWOViewerCLExe invocation")
+    parser.add_argument("--duration", type=float, default=0, help="capture duration in seconds, 0 = run until stopped")
+    parser.add_argument("--workspace", default=None, help="workspace root, defaults to cwd")
+    parser.add_argument("--config", default=None, help="skill config.json path")
     parser.add_argument("--json", action="store_true", dest="as_json")
     args, passthrough = parser.parse_known_args()
 
@@ -106,7 +108,7 @@ def main() -> None:
     viewer_cmd.extend(passthrough)
 
     if not viewer_cmd:
-        message = "缺少 SWO viewer 命令，请通过 --viewer-cmd 或 jlink/config.json.swo_command 提供"
+        message = "SWO viewer command missing, supply it via --viewer-cmd or jlink/config.json.swo_command"
         result = make_result(
             status="error",
             action="swo",
@@ -119,7 +121,7 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {message}", file=sys.stderr)
+            print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
 
     proc = None
@@ -163,7 +165,7 @@ def main() -> None:
             emit_stream_record(source="jlink", channel_type="swo", text=line, as_json=args.as_json, stream_type="text")
 
     except FileNotFoundError:
-        message = f"无法启动 SWO viewer: {viewer_cmd[0]}"
+        message = f"failed to launch SWO viewer: {viewer_cmd[0]}"
         result = make_result(
             status="error",
             action="swo",
@@ -176,7 +178,7 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {message}", file=sys.stderr)
+            print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:
         pass

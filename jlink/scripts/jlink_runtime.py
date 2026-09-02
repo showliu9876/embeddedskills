@@ -1,4 +1,4 @@
-"""jlink skill 私有运行时工具。"""
+"""Private runtime helpers for the jlink skill."""
 
 from __future__ import annotations
 
@@ -41,11 +41,11 @@ def default_config_path(script_file: str) -> Path:
 
 
 def load_local_config(script_file: str = "") -> dict:
-    """加载 skill/config.json（环境级配置）"""
+    """Load skill/config.json (machine-level config)."""
     if script_file:
         config_path = default_config_path(script_file)
     else:
-        # 尝试从调用栈推断路径
+        # Infer the path from the call stack
         import inspect
 
         frame = inspect.currentframe()
@@ -61,7 +61,7 @@ def load_local_config(script_file: str = "") -> dict:
 
 
 def save_local_config(data: dict, script_file: str = "") -> None:
-    """保存环境级配置到 skill/config.json"""
+    """Save machine-level config back to skill/config.json."""
     if script_file:
         config_path = default_config_path(script_file)
     else:
@@ -70,9 +70,10 @@ def save_local_config(data: dict, script_file: str = "") -> None:
 
 
 def load_project_config(workspace: str | None = None) -> dict:
-    """从 workspace/.embeddedskills/config.json 读取本 skill 的工程级配置
-    参数: workspace - 工作区路径，None 时使用 cwd
-    返回: 该 skill 对应的配置字典
+    """Read this skill's project-level config from workspace/.embeddedskills/config.json.
+
+    Args: workspace - workspace path; falls back to cwd when None.
+    Returns: the config dict for this skill.
     """
     ws_root = workspace_root(workspace)
     project_config_path = ws_root / STATE_DIR_NAME / PROJECT_CONFIG_FILE_NAME
@@ -81,22 +82,23 @@ def load_project_config(workspace: str | None = None) -> dict:
 
 
 def save_project_config(workspace: str | None = None, values: dict | None = None) -> None:
-    """写回工程级配置到 workspace/.embeddedskills/config.json
-    - 只更新本 skill 的配置部分，不覆盖其他 skill 的配置
-    - 目录不存在时自动创建 .embeddedskills/
-    - jlink_runtime 中 skill_name 硬编码为 "jlink"
+    """Write project-level config back to workspace/.embeddedskills/config.json.
+
+    - Only updates this skill's section; other skills' config is preserved.
+    - Creates .embeddedskills/ when the directory does not exist.
+    - skill_name is hardcoded to "jlink" in jlink_runtime.
     """
     if values is None:
         values = {}
     ws_root = workspace_root(workspace)
     project_config_path = ws_root / STATE_DIR_NAME / PROJECT_CONFIG_FILE_NAME
 
-    # 读取现有配置（如果存在）
+    # Read the existing config when present
     full_config = load_json_file(project_config_path)
     if not isinstance(full_config, dict):
         full_config = {}
 
-    # 只更新本 skill 的配置部分
+    # Only update this skill's section
     full_config[SKILL_NAME] = {**(full_config.get(SKILL_NAME) or {}), **values}
 
     save_json_file(project_config_path, full_config)
@@ -250,7 +252,7 @@ def resolve_param(
     if normalize_as_path and not is_missing(value):
         value = normalize_path_with_base(str(value), workspace_root(workspace))
     if required and is_missing(value):
-        raise ValueError(f"缺少必要参数: {name}")
+        raise ValueError(f"missing required parameter: {name}")
     return value, source
 
 
@@ -310,7 +312,7 @@ def resolve_tool_param(
         value = default
         source = f"default:{default}"
     if required and is_missing(value):
-        raise ValueError(f"缺少必要参数: {name}")
+        raise ValueError(f"missing required parameter: {name}")
     return value, source
 
 
