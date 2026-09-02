@@ -59,7 +59,7 @@ git clone https://github.com/zhinkgit/embeddedskills.git ~/.codex/skills
 git clone https://github.com/zhinkgit/embeddedskills.git .codex/skills
 ```
 
-![Codex manual installation](Zassets/局部截取_20260415_221746.png)
+![Codex manual installation](Zassets/screenshot_20260415_221746.png)
 
 Common Skill directories reference:
 
@@ -76,7 +76,7 @@ Common Skill directories reference:
 
 After installation, type `/` in the AI assistant. If you see command descriptions for OpenOCD, keil, etc., the installation is successful.
 
-![Slash command verification](Zassets/局部截取_20260415_222146.png)
+![Slash command verification](Zassets/screenshot_20260415_222146.png)
 
 > [!TIP]
 > Don't see slash commands? Troubleshoot in this order:
@@ -113,13 +113,13 @@ Use a CMSIS-DAP debugger (such as DAPLink) to connect to the development board.
 
 **Manual compile verification:**
 
-![Manual compile verification](Zassets/局部截取_20260415_222647.png)
+![Manual compile verification](Zassets/screenshot_20260415_222647.png)
 
 ![Keil compile interface](Zassets/UV4.exe_20260415_222708.png)
 
 **Manual flash verification:**
 
-![Manual download verification](Zassets/局部截取_20260415_222727.png)
+![Manual download verification](Zassets/screenshot_20260415_222727.png)
 
 ---
 
@@ -140,21 +140,21 @@ The Skill's `description` field defines trigger keywords. The AI automatically r
 
 **AI autonomously completes compile and flash:**
 
-![AI compile and flash](Zassets/局部截取_20260415_223149.png)
+![AI compile and flash](Zassets/screenshot_20260415_223149.png)
 
-![AI compile and flash result](Zassets/局部截取_20260415_223212.png)
+![AI compile and flash result](Zassets/screenshot_20260415_223212.png)
 
 **AI autonomously debugs:**
 
-![AI debugging](Zassets/局部截取_20260415_225048.png)
+![AI debugging](Zassets/screenshot_20260415_225048.png)
 
 <br>
 
 Each invocation result is automatically recorded in the `.embeddedskills/` folder under the project directory for subsequent troubleshooting:
 
-![Log file example](Zassets/局部截取_20260415_225229.png)
-![Log content](Zassets/局部截取_20260415_225317.png)
-![Log details](Zassets/局部截取_20260415_225336.png)
+![Log file example](Zassets/screenshot_20260415_225229.png)
+![Log content](Zassets/screenshot_20260415_225317.png)
+![Log details](Zassets/screenshot_20260415_225336.png)
 
 ---
 

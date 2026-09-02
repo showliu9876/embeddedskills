@@ -1,39 +1,39 @@
-# Embedded Skill 参考模版
+# Embedded Skill Reference Template
 
-## 1. 这些 skill 的共同特点
+## 1. Common Characteristics of These Skills
 
-当前仓库里的 skill，虽然面向的工具不同，但实现风格基本收敛到了同一套模型：
+Although targeting different tools, skills in this repository converge on the same implementation model:
 
-### 1.1 三层配置 + PATH
+### 1.1 Three-Layer Configuration + PATH
 
-共同读取这几层运行环境：
+Jointly resolving runtime environment across these layers:
 
-1. CLI 显式参数
+1. CLI explicit arguments
 2. `skill/config.json`
 3. `<workspace>/.embeddedskills/config.json`
 4. `<workspace>/.embeddedskills/state.json`
-5. 系统 `PATH`
-6. 默认值
+5. System `PATH`
+6. Default values
 
-其中：
+Key principles:
 
-- 工具路径优先走 `CLI > skill/config.json > PATH > 默认命令名`
-- 工程参数优先走 `CLI > .embeddedskills/config.json > state.json > 默认值/报错`
-- 产物路径优先走 `CLI > .embeddedskills/config.json > state.json > 默认值/报错`
+- Tool paths prioritize: `CLI > skill/config.json > PATH > default command name`
+- Project parameters prioritize: `CLI > .embeddedskills/config.json > state.json > default / error`
+- Artifact paths prioritize: `CLI > .embeddedskills/config.json > state.json > default / error`
 
-### 1.2 统一 runtime 层
+### 1.2 Unified Runtime Layer
 
-大多数 skill 都有一个 `*_runtime.py`，负责：
+Most skills include a `*_runtime.py` responsible for:
 
-- 读写环境级配置
-- 读写工程级配置
-- 读写状态文件
-- 标准化路径
-- 统一结果输出
-- 参数来源跟踪
-- 参数解析 helper
+- Reading/writing environment-level config
+- Reading/writing project-level config
+- Reading/writing state files
+- Normalizing paths
+- Standardizing result outputs
+- Tracking parameter sources
+- Parameter resolution helpers
 
-典型公共函数：
+Typical common functions:
 
 - `load_local_config`
 - `load_project_config`
@@ -48,15 +48,15 @@
 - `make_timing`
 - `parameter_context`
 
-### 1.3 统一结果格式
+### 1.3 Unified Result Format
 
-几乎所有脚本都返回结构化 JSON，核心字段一致：
+Almost all scripts return structured JSON with consistent core fields:
 
 ```json
 {
   "status": "ok",
   "action": "build",
-  "summary": "执行成功",
+  "summary": "Execution successful",
   "details": {},
   "context": {},
   "artifacts": {},
@@ -66,52 +66,52 @@
 }
 ```
 
-流式输出类命令额外会用 JSON Lines，并带上：
+Streaming output commands additionally use JSON Lines with:
 
 - `source`
 - `channel_type`
 - `stream_type`
 - `timestamp`
 
-### 1.4 工程配置与状态分离
+### 1.4 Separation of Project Configuration and State
 
-共同约束：
+Common constraints:
 
-- `.embeddedskills/config.json` 存“长期可复用的工程默认值”
-- `.embeddedskills/state.json` 存“最近一次成功执行的运行记录”
-- 成功后通常会：
-  - 把确认过的工程参数写回 `.embeddedskills/config.json`
-  - 把最近一次执行信息写回 `.embeddedskills/state.json`
+- `.embeddedskills/config.json` stores "long-term reusable project defaults"
+- `.embeddedskills/state.json` stores "run records of the most recent successful execution"
+- Upon success, usually:
+  - Writes confirmed project parameters back to `.embeddedskills/config.json`
+  - Writes most recent execution info back to `.embeddedskills/state.json`
 
-### 1.5 入口脚本职责清晰
+### 1.5 Clear Entry Script Responsibilities
 
-每个入口脚本基本都做同样几步：
+Each entry script basically follows the same steps:
 
-1. 解析 CLI 参数
-2. 加载本地配置、工程配置、状态
-3. 用 runtime helper 解析参数
-4. 校验必填项
-5. 调用底层工具
-6. 解析输出
-7. 写回 config/state
-8. 返回标准 JSON
+1. Parse CLI arguments
+2. Load local config, project config, and state
+3. Resolve parameters using runtime helpers
+4. Validate required arguments
+5. Invoke underlying tools
+6. Parse output
+7. Write back config/state
+8. Return standard JSON
 
-### 1.6 文档结构一致
+### 1.6 Consistent Documentation Structure
 
-每个 skill 通常有：
+Each skill typically contains:
 
 - `SKILL.md`
 - `README.md`
 - `config.example.json`
 - `scripts/`
 - `references/`
-- `templates/`（如需要）
+- `templates/` (if needed)
 
 ---
 
-## 2. 推荐目录结构
+## 2. Recommended Directory Structure
 
-新增 skill 时，建议直接使用这个目录骨架：
+When adding a new skill, it is recommended to directly use this directory skeleton:
 
 ```text
 your-skill/
@@ -129,18 +129,18 @@ your-skill/
     └── sample.txt
 ```
 
-说明：
+Notes:
 
-- `runtime.py` 必须有
-- `exec.py` 负责主命令入口
-- `scan.py` 负责发现/扫描
-- 其他脚本按场景拆分，不要把所有逻辑塞进一个文件
+- `runtime.py` is mandatory
+- `exec.py` handles main command entries
+- `scan.py` handles discovery/scanning
+- Split other scripts by scenario; do not stuff all logic into one file
 
 ---
 
-## 3. runtime.py 模版
+## 3. runtime.py Template
 
-下面是推荐骨架，按当前仓库主流实现收敛后的最小版本：
+Below is the recommended skeleton, a minimal version converged from the repository's mainstream implementations:
 
 ```python
 from __future__ import annotations
@@ -301,7 +301,7 @@ def resolve_tool_param(name: str, cli_value: Any, *, local_config: dict | None =
             value = default
             source = f"default:{default}" if isinstance(default, str) else "default"
     if required and is_missing(value):
-        raise ValueError(f"缺少必要参数: {name}")
+        raise ValueError(f"Missing required parameter: {name}")
     return value, source
 
 
@@ -326,7 +326,7 @@ def resolve_project_param(name: str, cli_value: Any, *, project_config: dict | N
     if normalize_as_path and not is_missing(value):
         value = normalize_path(str(value))
     if required and is_missing(value):
-        raise ValueError(f"缺少必要参数: {name}")
+        raise ValueError(f"Missing required parameter: {name}")
     return value, source
 
 
@@ -355,7 +355,7 @@ def resolve_runtime_param(name: str, cli_value: Any, *, project_config: dict | N
     if normalize_as_path and not is_missing(value):
         value = normalize_path(str(value))
     if required and is_missing(value):
-        raise ValueError(f"缺少必要参数: {name}")
+        raise ValueError(f"Missing required parameter: {name}")
     return value, source
 
 
@@ -406,9 +406,9 @@ def parameter_context(*, provider: str, workspace: str | None = None, parameter_
 
 ---
 
-## 4. 主入口脚本模版
+## 4. Main Entry Script Template
 
-建议每个入口脚本按这个顺序组织：
+It is recommended to organize each entry script in this order:
 
 ```python
 from __future__ import annotations
@@ -442,7 +442,7 @@ from your_skill_runtime import (
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="your-skill 主入口")
+    parser = argparse.ArgumentParser(description="your-skill main entry")
     parser.add_argument("action")
     parser.add_argument("--exe", default=None)
     parser.add_argument("--workspace", default=None)
@@ -486,11 +486,11 @@ def main() -> None:
         if args.as_json:
             output_json(result)
         else:
-            print(f"错误: {exc}", file=sys.stderr)
+            print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    # 这里执行工具调用
-    raw_result = {"status": "ok", "summary": "执行成功", "details": {"exe": exe}}
+    # Execute tool invocation here
+    raw_result = {"status": "ok", "summary": "Execution successful", "details": {"exe": exe}}
 
     if raw_result["status"] == "ok":
         save_project_config(str(workspace), {"some_confirmed_param": "value"})
@@ -536,9 +536,9 @@ if __name__ == "__main__":
 
 ---
 
-## 5. config.example.json 模版
+## 5. config.example.json Template
 
-### 环境级配置
+### Environment-level Configuration
 
 ```json
 {
@@ -549,12 +549,12 @@ if __name__ == "__main__":
 }
 ```
 
-建议：
+Recommendations:
 
-- 这里只放工具路径和本机相关配置
-- 不放工程真值参数
+- Only place tool paths and local machine configs here
+- Do not place project truth parameters here
 
-### 工程级配置示例
+### Project-level Configuration Example
 
 ```json
 {
@@ -570,41 +570,41 @@ if __name__ == "__main__":
 
 ---
 
-## 6. SKILL.md 模版
+## 6. SKILL.md Template
 
 ```md
 ---
 name: your-skill
-description: 一句话描述能力范围
+description: One-line description of capabilities
 ---
 
 # your-skill
 
-## 用途
+## Usage
 
-说明这个 skill 做什么。
+Explain what this skill does.
 
-## 配置
+## Configuration
 
-### 环境级配置（skill/config.json）
+### Environment-level Configuration (skill/config.json)
 
-用于工具路径和本机参数。
+Used for tool paths and local machine parameters.
 
-### 工程级配置（.embeddedskills/config.json）
+### Project-level Configuration (.embeddedskills/config.json)
 
-用于工程默认参数。
+Used for project default parameters.
 
-### 状态文件（.embeddedskills/state.json）
+### State File (.embeddedskills/state.json)
 
-用于保存最近一次成功执行记录。
+Used to save the most recent successful execution record.
 
-## 参数解析优先级
+## Parameter Resolution Precedence
 
-- 工具路径：`CLI > skill/config.json > PATH > 默认值`
-- 工程参数：`CLI > .embeddedskills/config.json > state.json > 默认值/报错`
-- 产物路径：`CLI > .embeddedskills/config.json > state.json > 默认值/报错`
+- Tool paths: `CLI > skill/config.json > PATH > Default values`
+- Project parameters: `CLI > .embeddedskills/config.json > state.json > Default values / Error`
+- Artifact paths: `CLI > .embeddedskills/config.json > state.json > Default values / Error`
 
-## 子命令
+## Subcommands
 
 ### scan
 
@@ -618,9 +618,9 @@ python <skill-dir>/scripts/your_skill_scan.py --json
 python <skill-dir>/scripts/your_skill_exec.py action --json
 ```
 
-## 返回格式
+## Return Format
 
-所有脚本返回 JSON，基础字段：
+All scripts return JSON with base fields:
 
 - `status`
 - `action`
@@ -629,37 +629,37 @@ python <skill-dir>/scripts/your_skill_exec.py action --json
 - `context`
 - `timing`
 
-## 规则
+## Rules
 
-- 缺少关键参数时不自动猜测
-- 单一候选可自动发现并写回工程配置
-- 成功执行后更新 `.embeddedskills/config.json` 和 `state.json`
+- Do not automatically guess when key parameters are missing
+- Single candidate can be auto-discovered and written back to project config
+- Update `.embeddedskills/config.json` and `state.json` after successful execution
 ```
 
 ---
 
-## 7. 新建 skill 的最小检查清单
+## 7. Minimal Checklist for Creating a New Skill
 
-新增 skill 前，至少确认这几项：
+Before adding a new skill, confirm at least these items:
 
-- 是否有独立 `runtime.py`
-- 是否区分环境级配置、工程级配置、状态文件
-- 是否主动探测系统 `PATH`
-- 是否统一返回 JSON
-- 是否成功后写回 config/state
-- 是否在 `SKILL.md` 中写明参数优先级
-- 是否避免把本机绝对路径写进工程配置
+- Whether there is an independent `runtime.py`
+- Whether environment-level config, project-level config, and state files are properly separated
+- Whether system `PATH` is proactively probed
+- Whether JSON output is standardized
+- Whether config/state is written back upon success
+- Whether parameter precedence is clearly documented in `SKILL.md`
+- Whether writing local machine absolute paths into project config is avoided
 
 ---
 
-## 8. 适合直接复用的场景
+## 8. Scenarios Suitable for Direct Reuse
 
-这份模版最适合以下新 skill：
+This template is best suited for the following new skills:
 
-- 新的烧录后端
-- 新的调试器后端
-- 新的串口/CAN/网络观测后端
-- 新的构建后端
-- 任何“CLI 工具包装 + 工程状态管理”型 skill
+- New flash backends
+- New debugger backends
+- New serial / CAN / network observation backends
+- New build backends
+- Any "CLI tool wrapper + project state management" skill
 
-如果是纯编排层，参考 `workflow`；如果是纯观测层，参考 `serial / net / can`；如果是“构建 + 产物 + 调试”一体型，参考 `gcc / keil / jlink / openocd / probe-rs`。
+If it is a pure orchestration layer, refer to `workflow`; if it is a pure observation layer, refer to `serial / net / can`; if it is an integrated "build + artifact + debug" skill, refer to `gcc / keil / jlink / openocd / probe-rs`.

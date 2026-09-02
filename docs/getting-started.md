@@ -1,176 +1,176 @@
-# embeddedskills 快速上手
+# embeddedskills Quick Start Guide
 
-> 本手册以 **Keil MDK + DAP 调试器（OpenOCD）+ Codex** 为例，演示从安装到闭环开发的完整流程。
-
----
-
-## 目录
-
-- [embeddedskills 快速上手](#embeddedskills-快速上手)
-  - [目录](#目录)
-  - [1. 安装](#1-安装)
-    - [方式一：npx（推荐）](#方式一npx推荐)
-    - [方式二：手动 clone](#方式二手动-clone)
-  - [2. 验证安装](#2-验证安装)
-  - [3. 配置环境参数](#3-配置环境参数)
-  - [4. 硬件连接 \& 工具链验证](#4-硬件连接--工具链验证)
-  - [5. 让 AI 接管](#5-让-ai-接管)
-  - [6. 完整闭环流程](#6-完整闭环流程)
+> This guide uses **Keil MDK + DAP Debugger (OpenOCD) + Codex** as an example to demonstrate the complete workflow from installation to closed-loop development.
 
 ---
 
-## 1. 安装
+## Table of Contents
 
-### 方式一：npx（推荐）
+- [embeddedskills Quick Start Guide](#embeddedskills-quick-start-guide)
+  - [Table of Contents](#table-of-contents)
+  - [1. Installation](#1-installation)
+    - [Method 1: npx (Recommended)](#method-1-npx-recommended)
+    - [Method 2: Manual Clone](#method-2-manual-clone)
+  - [2. Verify Installation](#2-verify-installation)
+  - [3. Configure Environment Parameters](#3-configure-environment-parameters)
+  - [4. Hardware Connection \& Toolchain Verification](#4-hardware-connection--toolchain-verification)
+  - [5. Let AI Take Over](#5-let-ai-take-over)
+  - [6. Complete Closed-Loop Workflow](#6-complete-closed-loop-workflow)
 
-借助 [skills](https://skills.sh/) CLI 工具，一条命令即可完成安装：
+---
+
+## 1. Installation
+
+### Method 1: npx (Recommended)
+
+Using the [skills](https://skills.sh/) CLI tool, installation is completed with a single command:
 
 ```bash
-# 安装全部 skill（自动检测 AI 工具并安装）
+# Install all skills (auto-detects AI tool and installs)
 npx skills add https://github.com/zhinkgit/embeddedskills -g -y
 ```
 
-![npx skills 全量安装](Zassets/WindowsTerminal.exe_20260415_220253.png)
+![npx skills full installation](Zassets/WindowsTerminal.exe_20260415_220253.png)
 
 ```bash
-# 只安装某个 skill（如只需要 openocd）
+# Install only specific skill (e.g., only openocd)
 npx skills add https://github.com/zhinkgit/embeddedskills --skill openocd -g -y
 
-# 管理
-npx skills ls -g        # 查看已安装列表
-npx skills update -g    # 更新到最新版本
-npx skills remove -g    # 移除
+# Management
+npx skills ls -g        # List installed
+npx skills update -g    # Update to latest version
+npx skills remove -g    # Remove
 ```
 
 ---
 
-### 方式二：手动 clone
+### Method 2: Manual Clone
 
-若 `npx skills` 不可用，直接 clone 到对应目录：
+If `npx skills` is unavailable, clone directly to the appropriate directory:
 
 ```bash
-# Claude Code（全局生效）
+# Claude Code (global)
 git clone https://github.com/zhinkgit/embeddedskills.git ~/.claude/skills/embeddedskills
 
-# Codex（全局）
+# Codex (global)
 git clone https://github.com/zhinkgit/embeddedskills.git ~/.codex/skills
 
-# Codex（仅当前项目）
+# Codex (current project only)
 git clone https://github.com/zhinkgit/embeddedskills.git .codex/skills
 ```
 
-![Codex 手动安装](Zassets/局部截取_20260415_221746.png)
+![Codex manual installation](Zassets/screenshot_20260415_221746.png)
 
-常见 Skill 目录参考：
+Common Skill directories reference:
 
-| AI 工具 | 全局路径 | 项目级路径 |
+| AI Tool | Global Path | Project-level Path |
 |---|---|---|
 | Claude Code | `~/.claude/skills/` | `.claude/skills/` |
 | Codex | `~/.codex/skills/` | `.codex/skills/` |
-| 通用 | `~/.agents/skills/` | `.agents/skills/` |
-| Cursor / OpenCode | 参考对应工具文档 | — |
+| Generic | `~/.agents/skills/` | `.agents/skills/` |
+| Cursor / OpenCode | Refer to corresponding tool documentation | — |
 
 ---
 
-## 2. 验证安装
+## 2. Verify Installation
 
-安装完成后，在 AI 助手中输入 `/`，能看到 OpenOCD、keil 等命令描述即为成功。
+After installation, type `/` in the AI assistant. If you see command descriptions for OpenOCD, keil, etc., the installation is successful.
 
-![斜杠命令验证](Zassets/局部截取_20260415_222146.png)
+![Slash command verification](Zassets/screenshot_20260415_222146.png)
 
 > [!TIP]
-> 看不到斜杠命令？按以下顺序排查：
-> - Skill 目录路径是否正确（注意全局 vs 项目级）
-> - `SKILL.md` 文件是否完整存在于每个 Skill 子目录下
-> - AI 工具是否支持 Skill 协议或自定义指令加载
+> Don't see slash commands? Troubleshoot in this order:
+> - Is the Skill directory path correct (note global vs project-level)
+> - Is the `SKILL.md` file complete in each Skill subdirectory
+> - Does the AI tool support the Skill protocol or custom instruction loading
 
 ---
 
-## 3. 配置环境参数
+## 3. Configure Environment Parameters
 
-Skill 采用三层配置，优先级从高到低：
+Skills use a three-layer configuration with priority from high to low:
 
 ```
-CLI 参数
-  └─► skill/config.json              ← 工具路径、本机硬件参数（JLinkExe、openocd、probe-rs 等）
-        └─► 系统 PATH 探测              ← 工具类参数在 skill/config.json 缺省时自动查找
-        └─► .embeddedskills/config.json  ← 工程默认配置（目标芯片、接口、日志目录）
-              └─► .embeddedskills/state.json  ← 运行状态（上次构建/烧录/调试记录）
-                    └─► 默认值
+CLI args
+  └─► skill/config.json              ← Tool paths, local hardware params (JLinkExe, openocd, probe-rs, …)
+        └─► System PATH probing          ← Tool params auto-discovered when skill/config.json omits them
+        └─► .embeddedskills/config.json  ← Project defaults (target chip, interface, log dirs)
+              └─► .embeddedskills/state.json  ← Runtime state (last build/flash/debug record)
+                    └─► Defaults
 ```
 
 > [!NOTE]
-> **不需要手动编辑配置文件**。首次使用时直接和 AI 对话，AI 会根据上下文引导你填写工具路径、目标芯片等参数，并自动写入配置文件。
+> **No need to manually edit config files**. On first use, simply talk to the AI. The AI will guide you to fill in tool paths, target chips, and other parameters based on context, and automatically write them to the config files.
 
 ---
 
-## 4. 硬件连接 & 工具链验证
+## 4. Hardware Connection & Toolchain Verification
 
-使用 CMSIS-DAP 调试器（如 DAPLink）连接开发板。
+Use a CMSIS-DAP debugger (such as DAPLink) to connect to the development board.
 
 > [!IMPORTANT]
-> 建议在让 AI 接管之前，先手动跑一次编译和烧录，**确认工具链本身没问题**。这样后续如果出错，可以确定问题在代码而不在环境配置。
+> Before letting AI take over, it's recommended to manually run a compile and flash once to **confirm the toolchain itself works**. This way, if errors occur later, you can be sure the problem is in the code rather than environment configuration.
 
-**手动验证编译：**
+**Manual compile verification:**
 
-![手动编译验证](Zassets/局部截取_20260415_222647.png)
+![Manual compile verification](Zassets/screenshot_20260415_222647.png)
 
-![Keil 编译界面](Zassets/UV4.exe_20260415_222708.png)
+![Keil compile interface](Zassets/UV4.exe_20260415_222708.png)
 
-**手动验证烧录：**
+**Manual flash verification:**
 
-![手动下载验证](Zassets/局部截取_20260415_222727.png)
+![Manual download verification](Zassets/screenshot_20260415_222727.png)
 
 ---
 
-## 5. 让 AI 接管
+## 5. Let AI Take Over
 
-Skill 的 `description` 字段定义了触发关键词，AI 会自动识别意图并调用对应 Skill。**说人话就够了，不需要记命令：**
+The Skill's `description` field defines trigger keywords. The AI automatically recognizes intent and invokes the corresponding Skill. **Just speak naturally, no need to memorize commands:**
 
-| 你说 | AI 触发的 Skill |
+| You Say | AI Triggered Skill |
 |---|:---:|
-| "帮我编译一下" | `keil` 或 `gcc` |
-| "烧录到板子上" | `openocd` 或 `jlink` |
-| "看看串口输出" | `serial` |
-| "单步调试一下" | `openocd` 或 `jlink` |
-| "看看寄存器" | `openocd` 或 `jlink` |
-| "一键编译烧录调试" | `workflow` |
+| "Help me compile" | `keil` or `gcc` |
+| "Flash to the board" | `openocd` or `jlink` |
+| "Check serial output" | `serial` |
+| "Step through debugging" | `openocd` or `jlink` |
+| "Look at registers" | `openocd` or `jlink` |
+| "One-click compile, flash, and debug" | `workflow` |
 
 <br>
 
-**AI 自主完成编译下载：**
+**AI autonomously completes compile and flash:**
 
-![AI 编译下载](Zassets/局部截取_20260415_223149.png)
+![AI compile and flash](Zassets/screenshot_20260415_223149.png)
 
-![AI 编译下载结果](Zassets/局部截取_20260415_223212.png)
+![AI compile and flash result](Zassets/screenshot_20260415_223212.png)
 
-**AI 自主调试：**
+**AI autonomously debugs:**
 
-![AI 调试](Zassets/局部截取_20260415_225048.png)
+![AI debugging](Zassets/screenshot_20260415_225048.png)
 
 <br>
 
-每次调用结果自动记录到项目目录下的 `.embeddedskills/` 文件夹，方便后续排查问题：
+Each invocation result is automatically recorded in the `.embeddedskills/` folder under the project directory for subsequent troubleshooting:
 
-![日志文件示例](Zassets/局部截取_20260415_225229.png)
-![日志内容](Zassets/局部截取_20260415_225317.png)
-![日志详情](Zassets/局部截取_20260415_225336.png)
+![Log file example](Zassets/screenshot_20260415_225229.png)
+![Log content](Zassets/screenshot_20260415_225317.png)
+![Log details](Zassets/screenshot_20260415_225336.png)
 
 ---
 
-## 6. 完整闭环流程
+## 6. Complete Closed-Loop Workflow
 
 ```mermaid
 flowchart TD
-    A["💬 需求沟通"] --> B["✍️ 代码生成与优化"]
-    B --> C["🔨 自动编译 keil build / gcc build"]
-    C -->|有错误| D["🤖 AI 读取编译错误"]
+    A["💬 Requirements Discussion"] --> B["✍️ Code Generation & Optimization"]
+    B --> C["🔨 Auto Compile keil build / gcc build"]
+    C -->|Errors| D["🤖 AI Reads Compiler Errors"]
     D --> B
-    C -->|通过| E["⚡ 自动烧录 openоcd flash / jlink flash"]
-    E --> F["🔬 自动调试验证"]
-    F -->|异常| G["🤖 AI 读取调试信息"]
+    C -->|Success| E["⚡ Auto Flash openocd flash / jlink flash"]
+    E --> F["🔬 Auto Debug & Verify"]
+    F -->|Anomaly| G["🤖 AI Reads Debug Info"]
     G --> B
-    F -->|正常| H["✅ 提交最终代码"]
+    F -->|Normal| H["✅ Submit Final Code"]
 
     style A fill:#4CAF50,color:#fff
     style H fill:#4CAF50,color:#fff
@@ -181,27 +181,27 @@ flowchart TD
     style G fill:#f44336,color:#fff
 ```
 
-当调试发现问题时，AI 会自动形成 **读取错误 → 修改代码 → 重新编译 → 重新烧录 → 重新调试** 的闭环，无需人工干预。
+When debugging reveals issues, the AI automatically forms a closed loop of **read error → modify code → recompile → reflash → redebug** without human intervention.
 
 <br>
 
 <details>
-<summary><b>典型例子：串口波特率调试全过程</b></summary>
+<summary><b>Typical Example: Serial Baud Rate Debugging Process</b></summary>
 
-1. AI 发现串口输出乱码
-2. AI 读代码，定位到波特率配置错误（`9600` 写成了 `96000`）
-3. AI 修正波特率配置
-4. AI 调用 `keil build` 重新编译
-5. AI 调用 `openocd flash` 重新烧录
-6. AI 调用 `serial monitor` 再次验证
-7. 串口输出正常，闭环完成
+1. AI discovers garbled serial output
+2. AI reads code and locates baud rate configuration error (`9600` written as `96000`)
+3. AI corrects baud rate configuration
+4. AI calls `keil build` to recompile
+5. AI calls `openocd flash` to reflash
+6. AI calls `serial monitor` to verify again
+7. Serial output is normal, closed loop complete
 
 </details>
 
 <br>
 
-> 此后的开发模式变为：**描述需求 → AI 生成代码 → 自动编译烧录调试 → 迭代修改，直到功能完成。**
+> From now on, the development mode becomes: **Describe requirements → AI generates code → Auto compile, flash, debug → Iterate until feature complete.**
 
 ---
 
-> 有问题请提 [GitHub Issues](https://github.com/zhinkgit/embeddedskills/issues)，欢迎贡献 PR。
+> Questions? Please submit [GitHub Issues](https://github.com/zhinkgit/embeddedskills/issues). PRs welcome.

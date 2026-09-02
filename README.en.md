@@ -1,7 +1,5 @@
 <div align="center">
 
-[简体中文](./README.md) | English
-
 # embeddedskills — Embedded Development & Debugging Skills
 
 **Give AI coding assistants direct control over compilers, debuggers, and communication buses — completing the full loop from code generation to hardware verification.**

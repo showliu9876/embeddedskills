@@ -1,10 +1,8 @@
 <div align="center">
 
-简体中文 | [English](./README.en.md)
+# embeddedskills — Embedded Development & Debugging Skills
 
-# embeddedskills — 嵌入式 AI 开发调试 Skill 集
-
-**让 AI 编码助手直接操控编译器、调试器和通信总线，实现从代码生成到硬件验证的完整闭环。**
+**Give AI coding assistants direct control over compilers, debuggers, and communication buses — completing the full loop from code generation to hardware verification.**
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Status](https://img.shields.io/badge/status-active-success?style=flat-square)]()
@@ -21,27 +19,27 @@
 
 ---
 
-## ✨ 三大核心优势
+## ✨ Three Core Advantages
 
-### 🔁 嵌入式 AI 工作流闭环
+### 🔁 Embedded AI Workflow Closed Loop
 
-嵌入式开发有一道纯软件开发没有的鸿沟：写完代码只是开始，编译、烧录、调试每一步都需要人在中间传递信息。
+Embedded development has a gap that pure software development doesn't have: writing code is just the beginning — compiling, flashing, and debugging all require human intervention at every step.
 
-> AI 改完代码 → **你**手动编译 → **你**手动烧录 → **你**把报错复制给 AI → AI 再改 → **你**再编译……
+> AI modifies code → **You** manually compile → **You** manually flash → **You** copy errors to AI → AI fixes → **You** compile again...
 
-**embeddedskills 把这个循环交给 AI 自己跑：**
+**embeddedskills hands this loop over to AI:**
 
 ```mermaid
 flowchart TD
-    A["💬 需求沟通"] --> B["✍️ 代码生成与优化"]
-    B --> C["🔨 自动编译 keil build / gcc build"]
-    C -->|有错误| D["🤖 AI 读取编译错误"]
+    A["💬 Requirements Discussion"] --> B["✍️ Code Generation & Optimization"]
+    B --> C["🔨 Auto Compile keil build / gcc build"]
+    C -->|Errors| D["🤖 AI Reads Compiler Errors"]
     D --> B
-    C -->|通过| E["⚡ 自动烧录 openоcd flash / jlink flash / probe-rs flash"]
-    E --> F["🔬 自动调试验证"]
-    F -->|异常| G["🤖 AI 读取调试信息"]
+    C -->|Success| E["⚡ Auto Flash openocd flash / jlink flash / probe-rs flash"]
+    E --> F["🔬 Auto Debug & Verify"]
+    F -->|Anomaly| G["🤖 AI Reads Debug Info"]
     G --> B
-    F -->|正常| H["✅ 提交最终代码"]
+    F -->|Normal| H["✅ Submit Final Code"]
 
     style A fill:#4CAF50,color:#fff
     style H fill:#4CAF50,color:#fff
@@ -52,42 +50,42 @@ flowchart TD
     style G fill:#f44336,color:#fff
 ```
 
-| 环节 | 传统 AI 辅助 | AI + embeddedskills |
+| Stage | Traditional AI Assistance | AI + embeddedskills |
 |------|------------|-------------------|
-| 代码编写 | AI 生成 | AI 生成 |
-| 编译构建 | **人工操作** | ✅ AI 调用 Keil / GCC |
-| 烧录下载 | **人工操作** | ✅ AI 调用 J-Link / OpenOCD |
-| 调试验证 | **人工操作** | ✅ AI 断点 / 寄存器 / 内存 |
-| 通信调试 | **人工操作** | ✅ AI 串口 / CAN / 网络 |
-| 错误修正 | **人工转述给 AI** | ✅ AI 读取并自主修正 |
+| Code Writing | AI generates | AI generates |
+| Compile/Build | **Manual** | ✅ AI invokes Keil / GCC |
+| Flash/Download | **Manual** | ✅ AI invokes J-Link / OpenOCD |
+| Debug/Verify | **Manual** | ✅ AI breakpoints / registers / memory |
+| Communication Debug | **Manual** | ✅ AI serial / CAN / network |
+| Error Fixing | **Manually paste errors to AI** | ✅ AI reads and fixes autonomously |
 
 ---
 
-### 🆓 完全免费，不限 AI 工具
+### 🆓 Completely Free, No AI Tool Lock-in
 
-本项目完全开源免费（MIT 协议）。只要 AI 工具支持 Skill / CLAUDE.md / Rules 协议，均可直接使用，包括但不限于：
+This project is fully open source and free (MIT license). Any AI tool that supports the Skill / CLAUDE.md / Rules protocol can use it directly, including but not limited to:
 
 - **Claude Code**
 - **OpenAI Codex CLI**
 - **TRAE**
-- **Cursor、Kiro、Windsurf** 等其他支持 Skill 协议的工具
+- **Cursor, Kiro, Windsurf** and other tools supporting the Skill protocol
 
-无需付费订阅任何附加服务，AI 工具自由切换。
+No paid subscriptions required for any additional services. Switch AI tools freely.
 
 ---
 
-### ⚡ 使用简单，无需迁移工程
+### ⚡ Simple to Use, No Project Migration Required
 
-**直接在现有项目上使用，无需改动任何工程文件。** 支持业界主流工程体系和调试器：
+**Works directly on your existing projects — no changes to any project files.** Supports mainstream build systems and debuggers in the industry:
 
-| 维度 | 支持范围 |
-|------|---------|
-| **构建系统** | Keil MDK 工程、CMake 工程 |
-| **调试器** | J-Link（SEGGER）、CMSIS-DAP / DAPLink |
-| **烧录框架** | OpenOCD、probe-rs 兼容工具链 |
-| **通信总线** | 串口（UART）、CAN / CAN-FD、以太网 |
+| Dimension | Supported Range |
+|------|-------|
+| **Build Systems** | Keil MDK projects, CMake projects |
+| **Debuggers** | J-Link (SEGGER), CMSIS-DAP / DAPLink |
+| **Flash Frameworks** | OpenOCD, probe-rs compatible toolchain |
+| **Communication Buses** | Serial (UART), CAN / CAN-FD, Ethernet |
 
-一条命令安装，AI 即可自动识别工程类型并开始工作：
+One-command install, AI automatically detects project type and starts working:
 
 ```bash
 npx skills add https://github.com/zhinkgit/embeddedskills -g -y
@@ -95,88 +93,91 @@ npx skills add https://github.com/zhinkgit/embeddedskills -g -y
 
 ---
 
-## Skill 一览
+## Skill Overview
 
-| 分类 | Skill | 能做什么 | 主要子命令 |
+| Category | Skill | What It Does | Main Subcommands |
 |:---:|:---:|---|---|
-| 🔨 构建 | **keil** | Keil MDK 工程扫描、Target 枚举、编译、重建、清理 | `scan` `targets` `build` `rebuild` `clean` `flash` |
-| 🔨 构建 | **gcc** | CMake 型 GCC 工程配置、编译、大小分析 | `scan` `presets` `configure` `build` `rebuild` `size` |
-| 🔨 构建 | **eide** | EIDE 工程扫描、配置枚举、构建和大小分析 | `scan` `configs` `build` `rebuild` `clean` `size` |
-| 🔬 调试 | **jlink** | 烧录、读写内存/寄存器、RTT/SWO、GDB 调试 | `flash` `read-mem` `write-mem` `regs` `rtt` `swo` + GDB |
-| 🔬 调试 | **openocd** | 烧录、擦除、GDB/Telnet、Semihosting/ITM | `flash` `erase` `reset` `gdb-server` `semihosting` `itm` |
-| 🔬 调试 | **probe-rs** | 探针发现、烧录、复位、内存读写、GDB 调试、RTT | `list` `info` `flash` `erase` `reset` `read-mem` `write-mem` `gdb` `rtt` |
-| 🔌 通信 | **serial** | 扫描串口、实时监控、发送数据、Hex 查看 | `scan` `monitor` `send` `hex` `log` |
-| 🔌 通信 | **can** | CAN/CAN-FD 监控、发帧、DBC 解码、统计 | `scan` `monitor` `send` `decode` `stats` |
-| 🔌 通信 | **net** | 抓包分析、连通性测试、端口扫描、流量统计 | `capture` `analyze` `ping` `scan` `stats` |
-| 🔌 通信 | **ssh** | SSH 配置、环境解析、只读探测、远程命令、上传下载、跳板机和端口转发 | `list` `find` `resolve` `show` `add` + exec/probe/transfer/tunnel |
-| 🔌 通信 | **terminal** | 串口、SSH、本地 Shell 双向交互会话 | `start` `send` `read` `attach` `stop` |
-| 🎯 编排 | **workflow** | 自动识别工程 → 选择工具链 → 串联全流程 | `plan` `build` `build-flash` `build-debug` `observe` `diagnose` |
+| 🔨 Build | **keil** | Keil MDK project scan, Target enumeration, compile, rebuild, clean | `scan` `targets` `build` `rebuild` `clean` `flash` |
+| 🔨 Build | **gcc** | CMake-based GCC project configuration, compile, size analysis | `scan` `presets` `configure` `build` `rebuild` `size` |
+| 🔨 Build | **eide** | EIDE project scan, config enumeration, build, rebuild, clean, and size analysis | `scan` `configs` `build` `rebuild` `clean` `size` |
+| 🔬 Debug | **jlink** | Flash, read/write memory/registers, RTT/SWO, GDB debug | `flash` `read-mem` `write-mem` `regs` `rtt` `swo` + GDB |
+| 🔬 Debug | **openocd** | Flash, erase, GDB/Telnet, Semihosting/ITM | `flash` `erase` `reset` `gdb-server` `semihosting` `itm` |
+| 🔬 Debug | **probe-rs** | Probe discovery, flashing, reset, memory access, GDB debug, RTT | `list` `info` `flash` `erase` `reset` `read-mem` `write-mem` `gdb` `rtt` |
+| 🔌 Communication | **serial** | Scan serial ports, real-time monitor, send data, hex view | `scan` `monitor` `send` `hex` `log` |
+| 🔌 Communication | **can** | CAN/CAN-FD monitoring, send frames, DBC decode, statistics | `scan` `monitor` `send` `decode` `stats` |
+| 🔌 Communication | **net** | Packet capture analysis, connectivity test, port scan, traffic stats | `capture` `analyze` `ping` `scan` `stats` |
+| 🔌 Communication | **ssh** | SSH config, environment resolution, read-only probing, remote commands, upload/download, jump hosts, and port forwarding | `list` `find` `resolve` `show` `add` + exec/probe/transfer/tunnel |
+| 🔌 Communication | **terminal** | Bidirectional serial, SSH, and local shell sessions | `start` `send` `read` `attach` `stop` |
+| 🎯 Orchestration | **workflow** | Auto-detect project → Select toolchain → Orchestrate full flow | `plan` `build` `build-flash` `build-debug` `observe` `diagnose` |
 
 > [!TIP]
-> `Keil / GCC` 与 `J-Link / OpenOCD / probe-rs` 可自由正交组合，六种搭配均可开箱即用。
+> `Keil / GCC` and `J-Link / OpenOCD / probe-rs` can be freely combined orthogonally — all six combinations work out of the box.
 
 ---
 
-## 安装
+## Installation
 
-### 方法一：npx（推荐）
+### Method 1: npx (Recommended)
 
 ```bash
-# 一键安装全部 skill
+# One-click install all skills
 npx skills add https://github.com/zhinkgit/embeddedskills -g -y
 
-# 只安装需要的 skill
-npx skills add https://github.com/zhinkgit/embeddedskills --skill jlink -g -y
+# Install only specific skill (e.g., only openocd)
+npx skills add https://github.com/zhinkgit/embeddedskills --skill openocd -g -y
 
-# 管理
-npx skills ls -g        # 查看已安装
-npx skills update -g    # 更新
-npx skills remove -g    # 移除
+# Management
+npx skills ls -g        # List installed
+npx skills update -g    # Update to latest
+npx skills remove -g    # Remove
 ```
 
-### 方法二：直接 clone
+### Method 2: Direct Clone
 
 ```bash
-# Claude Code（全局）
-git clone https://github.com/zhinkgit/embeddedskills ~/.claude/skills/embeddedskills
+# Claude Code (global)
+git clone https://github.com/zhinkgit/embeddedskills.git ~/.claude/skills/embeddedskills
 
-# 仅当前项目
-git clone https://github.com/zhinkgit/embeddedskills .claude/skills/embeddedskills
+# Codex (global)
+git clone https://github.com/zhinkgit/embeddedskills.git ~/.codex/skills
+
+# Codex (current project only)
+git clone https://github.com/zhinkgit/embeddedskills.git .codex/skills
 ```
 
 > [!NOTE]
-> **[→ 完整安装与使用手册](docs/getting-started.md)**，包含截图演示和配置说明。
+> **[→ Full Installation & Usage Guide](docs/getting-started.en.md)** — includes screenshot demonstrations and configuration instructions.
 
 ---
 
-## 工作原理
+## How It Works
 
-三个关键设计让 AI 能真正自主闭环：
+Three key designs enable true autonomous AI closed-loop:
 
 <details>
-<summary><b>① 封装命令行工具</b></summary>
+<summary><b>① Wrap CLI Tools</b></summary>
 
-每个 Skill 是一组 Python 脚本，将底层工具（cmake、JLinkExe、openocd、probe-rs、tshark 等）的命令行参数和交互流程转化为结构化子命令，AI 可以像调用函数一样调用这些工具。
+Each Skill is a set of Python scripts that convert underlying tools (cmake, JLinkExe, openocd, probe-rs, tshark, etc.) CLI parameters and interactive flows into structured subcommands, allowing AI to call these tools like functions.
 
 </details>
 
 <details>
-<summary><b>② 通过 SKILL.md 暴露给 AI</b></summary>
+<summary><b>② Expose to AI via SKILL.md</b></summary>
 
-每个 Skill 目录下的 `SKILL.md` 以自然语言描述能力、子命令和使用场景。AI 读取后即可正确调用，**无需额外训练或配置**，任何支持 Skill 协议的 AI 工具开箱即用。
+Each Skill directory contains a `SKILL.md` that describes capabilities, subcommands, and usage scenarios in natural language. After reading it, AI can invoke correctly — **no additional training or configuration needed**, any AI tool supporting the Skill protocol works out of the box.
 
 </details>
 
 <details>
-<summary><b>③ 统一 JSON 输出，驱动下一步决策</b></summary>
+<summary><b>③ Unified JSON Output Drives Next Decisions</b></summary>
 
-所有脚本返回统一结构的 JSON，AI 直接解析状态、摘要和建议，自主决定下一步操作：
+All scripts return a unified JSON structure that AI parses directly for status, summary, and recommendations to autonomously decide next actions:
 
 ```json
 {
   "status": "ok | error",
   "action": "build",
-  "summary": "编译成功，0 errors，2 warnings",
+  "summary": "Build successful, 0 errors, 2 warnings",
   "details": { "warnings": ["unused variable 'x' at main.c:42"] },
   "artifacts": { "hex": ".embeddedskills/build/output.hex" },
   "next_actions": ["flash to device"]
@@ -187,79 +188,79 @@ git clone https://github.com/zhinkgit/embeddedskills .claude/skills/embeddedskil
 
 <br>
 
-**三层配置**，按需覆盖，优先级从高到低：
+**Three-layer configuration**, override as needed, priority from high to low:
 
 ```
-CLI 参数  ──►  skill/config.json（工具路径、硬件参数）
-          ──►  .embeddedskills/config.json（目标芯片、接口、日志目录）
-          ──►  .embeddedskills/state.json（最近一次构建/烧录/调试记录）
-          ──►  默认值
+CLI args  ──►  skill/config.json (tool paths, hardware params)
+          ──►  .embeddedskills/config.json (target chip, interface, log dirs)
+          ──►  .embeddedskills/state.json (last build/flash/debug record)
+          ──►  Defaults
 ```
 
-**统一日志目录：**
+**Unified Log Directories:**
 
 ```
 workspace/
 └── .embeddedskills/
-    ├── build/          ← 编译日志与 hex/bin 产物
+    ├── build/          ← Build logs and hex/bin artifacts
     └── logs/
-        ├── serial/     ← 串口监控日志
-        ├── can/        ← CAN 报文日志
-        └── net/        ← 网络抓包文件
+        ├── serial/     ← Serial monitor logs
+        ├── can/        ← CAN message logs
+        └── net/        ← Network capture files
 ```
 
 ---
 
-## 外部依赖
+## External Dependencies
 
 <details>
-<summary>展开查看各 Skill 所需依赖</summary>
+<summary>Expand to view dependencies for each Skill</summary>
 
-| Skill | 依赖 |
+| Skill | Dependencies |
 |---|---|
-| keil | Keil MDK (UV4.exe) — **仅 Windows**，其余 Skill 均以 Linux 为主 |
+| keil | Keil MDK (UV4.exe) — **Windows only**; every other Skill targets Linux |
 | gcc | CMake · Ninja/Make · ARM GNU Toolchain |
 | jlink | SEGGER J-Link Software · arm-none-eabi-gdb |
-| openocd | OpenOCD · 调试器驱动 (ST-Link / CMSIS-DAP / DAPLink / FTDI) |
+| openocd | OpenOCD · Debugger drivers (ST-Link / CMSIS-DAP / DAPLink / FTDI) |
 | probe-rs | probe-rs CLI · arm-none-eabi-gdb |
-| serial | pyserial · USB 转串口驱动 |
-| can | python-can · cantools · pyserial · USB-CAN 驱动 |
+| serial | pyserial · USB-to-serial driver |
+| can | python-can · cantools · pyserial · USB-CAN driver |
 | net | Wireshark (tshark) · libpcap |
-| ssh | OpenSSH 客户端 (`ssh` / `scp` / `ssh-keygen`) |
-| terminal | pyserial（串口后端）· OpenSSH 客户端（SSH 后端） |
+| ssh | OpenSSH client (`ssh` / `scp` / `ssh-keygen`) |
+| terminal | pyserial for serial backend · OpenSSH client for SSH backend |
 
-> 除 CAN、串口和 terminal 的串口后端外，所有 Skill 均基于 Python 标准库实现，无需额外安装 Python 依赖。
-
-> [!NOTE]
-> 所有 Skill 以 Linux 为默认平台：工具名、默认路径和自动探测目录均按 Linux 约定（`/opt/SEGGER/JLink`、`/usr/share/openocd/scripts`、`/dev/ttyUSB0`、SocketCAN 等），Windows 命令名仅作为兼容候选保留在探测列表末尾。**例外：`keil` skill 依赖 `UV4.exe`，仅可在 Windows 上使用。**
+> Except for CAN, serial, and terminal's serial backend, all Skills are implemented using Python standard library — no additional Python dependencies needed.
 
 > [!NOTE]
-> Linux 下访问调试探针、串口和抓包设备需要相应权限：安装 SEGGER / probe-rs 提供的 udev 规则，将用户加入 `dialout`（串口）与 `wireshark`（抓包）组，重新登录后生效。
+> All Skills target Linux by default: tool names, default paths, and auto-discovery directories follow Linux conventions (`/opt/SEGGER/JLink`, `/usr/share/openocd/scripts`, `/dev/ttyUSB0`, SocketCAN, …). Windows command names are kept only as trailing fallback candidates during PATH probing. **Exception: the `keil` skill depends on `UV4.exe` and runs on Windows only.**
+
+> [!NOTE]
+> On Linux, accessing debug probes, serial ports, and capture devices requires permissions: install the udev rules shipped by SEGGER / probe-rs, and add your user to the `dialout` (serial) and `wireshark` (capture) groups — log out and back in for the change to take effect.
 
 > [!WARNING]
-> `probe-rs` 与 SEGGER 官方工具会争用同一个 J-Link 设备，不要同时运行。若你仍依赖 J-Link 官方工具链，优先继续使用现有 `jlink` skill。
+> `probe-rs` and the official SEGGER tools contend for the same J-Link device; do not run them at the same time. If you still rely on the SEGGER toolchain, prefer the existing `jlink` skill.
 
 </details>
 
 ---
 
-## 完成进度
+## Progress
 
-| Skill | 状态 |
+| Skill | Status |
 |---|:---:|
-| keil | ✅ 已完成测试 |
-| gcc | ✅ 已完成测试 |
-| platformio | 🔧 待支持 |
-| jlink | ✅ 已完成测试 |
-| openocd | ✅ 已完成测试 |
-| probe-rs | ✅ 已完成测试 |
-| pyocd | 🔧 待支持 |
-| serial | ✅ 已完成测试 |
-| net | ✅ 已完成测试 |
-| can | 🔧 待测试 |
-| ssh | ✅ 已完成测试 |
-| terminal | 🔧 待硬件测试 |
-| workflow | ✅ 已完成测试 |
+| keil | ✅ Tested |
+| gcc | ✅ Tested |
+| platformio | 🔧 To be supported |
+| jlink | ✅ Tested |
+| openocd | ✅ Tested |
+| probe-rs | ✅ Tested |
+| pyocd | 🔧 To be supported |
+| serial | ✅ Tested |
+| net | ✅ Tested |
+| can | 🔧 Pending test |
+| ssh | ✅ Tested |
+| terminal | 🔧 Pending hardware test |
+| workflow | ✅ Tested |
 
 ---
 
@@ -273,4 +274,4 @@ workspace/
  </picture>
 </a>
 
-欢迎提 Issue 和 PR。感谢 [Linux.do](https://linux.do/) 社区支持。
+Welcome to submit Issues and PRs. Thanks to the [Linux.do](https://linux.do/) community for their support.

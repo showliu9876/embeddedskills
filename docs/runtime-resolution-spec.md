@@ -1,19 +1,19 @@
-# 运行环境读取统一规范
+# Unified Runtime Environment Resolution Specification
 
-## 目的
+## Purpose
 
-本文档定义 embeddedskills 各个 skill 后续统一采用的运行环境读取规范，用于替代当前各 skill 分散且不一致的参数解析逻辑。
+This document defines the unified runtime environment resolution specification to be adopted across all skills in embeddedskills, replacing the previously fragmented and inconsistent parameter parsing logic in individual skills.
 
-目标：
+Goals:
 
-- 统一 `CLI / skill/config.json / .embeddedskills/config.json / .embeddedskills/state.json / 系统 PATH` 的职责和优先级
-- 明确哪些参数允许从哪些层读取
-- 要求脚本主动探测系统 `PATH`，而不是仅依赖命令执行失败后的被动报错
-- 统一参数来源回显、自动写回和缺失参数处理
+- Standardize the responsibilities and precedence of `CLI / skill/config.json / .embeddedskills/config.json / .embeddedskills/state.json / system PATH`
+- Explicitly define which parameters are allowed to be resolved from which layers
+- Require scripts to proactively probe the system `PATH`, rather than passively relying on errors after execution failure
+- Standardize parameter source echoing, automatic writeback, and missing parameter handling
 
-## 适用范围
+## Scope
 
-适用于以下 skill：
+Applies to the following skills:
 
 - `can`
 - `serial`
@@ -25,80 +25,80 @@
 - `probe-rs`
 - `workflow`
 
-## 文件职责
+## File Responsibilities
 
-### 1. CLI 显式参数
+### 1. CLI Explicit Arguments
 
-最高优先级。用户本次调用显式提供的参数必须覆盖其他一切来源。
+Highest priority. Arguments explicitly provided by the user in the current invocation must override all other sources.
 
 ### 2. `skill/config.json`
 
-本机环境级配置，只存放当前机器相关且不应共享到工程仓库的内容。
+Machine-level environment configuration. Only stores settings specific to the local machine that should not be committed to the project repository.
 
-允许存放：
+Allowed:
 
-- 工具可执行文件路径，如 `uv4_exe`、`cmake_exe`、`gdb_exe`
-- 本机探针/抓包工具/串口工具默认路径
-- 本机私有硬件参数，如本机默认探针序列号
+- Tool executable paths, e.g., `uv4_exe`, `cmake_exe`, `gdb_exe`
+- Default paths for local probes, packet capture tools, and serial port tools
+- Local private hardware parameters, e.g., default probe serial number of the local machine
 
-不应存放：
+Not allowed:
 
-- 工程路径
-- 芯片型号、Target、board/interface/target
-- 构建 preset、日志目录、产物路径
+- Project paths
+- Chip models, targets, board/interface/target
+- Build presets, log directories, artifact paths
 
 ### 3. `<workspace>/.embeddedskills/config.json`
 
-工程级共享配置。用于保存项目成员可共享的默认参数。
+Project-level shared configuration. Used to persist default parameters shareable among project members.
 
-允许存放：
+Allowed:
 
-- 工程路径、Target、preset
-- 芯片型号、接口类型、协议类型
+- Project paths, targets, presets
+- Chip models, interface types, protocol types
 - `workflow.preferred_*`
-- 共享日志目录
+- Shared log directories
 
-不应存放：
+Not allowed:
 
-- 机器相关的绝对工具路径
-- 依赖当前用户家目录的绝对路径（如 `/home/<user>/...`）
+- Machine-dependent absolute tool paths
+- Absolute paths depending on the current user's home directory (e.g., `/home/<user>/...`)
 
 ### 4. `<workspace>/.embeddedskills/state.json`
 
-运行状态，不是配置真值源，只作为最近一次成功执行的回退来源。
+Runtime state, not a source of truth for configuration. Used solely as a fallback source from the most recent successful execution.
 
-允许存放：
+Allowed:
 
-- 最近一次成功构建/烧录/调试/观测使用的参数
-- 最近一次构建产物路径
-- 最近一次自动发现或自动补全得到的结果
+- Parameters used in the most recent successful build / flash / debug / observe operation
+- Most recent build artifact paths
+- Results from the most recent auto-discovery or auto-completion
 
-不应用于：
+Not allowed:
 
-- 长期保存工具路径
-- 覆盖工程配置
+- Long-term storage of tool paths
+- Overriding project configuration
 
-### 5. 系统 `PATH`
+### 5. System `PATH`
 
-用于主动发现工具命令，不属于配置文件层，但属于正式解析层级。
+Used for proactive discovery of tool commands. Not a configuration file layer, but a formal resolution tier.
 
-适用对象：
+Applicable to:
 
 - `cmake`
 - `probe-rs`
 - `openocd`
 - `arm-none-eabi-gdb`
-- `JLinkExe`、`JLinkGDBServerCLExe`
-- `tshark`、`capinfos`
-- 其他可执行工具
+- `JLinkExe`, `JLinkGDBServerCLExe`
+- `tshark`, `capinfos`
+- Other executable tools
 
-## 统一解析模型
+## Unified Resolution Model
 
-不是所有参数都走完全相同的顺序。统一规范按参数类型定义可用来源。
+Not all parameters follow the exact same resolution order. The unified specification defines available sources according to parameter types.
 
-### A. 可执行文件/命令参数
+### A. Executable / Command Parameters
 
-如：
+Examples:
 
 - `exe`
 - `uv4_exe`
@@ -107,23 +107,23 @@
 - `gdbserver_exe`
 - `tshark_exe`
 
-统一优先级：
+Unified precedence:
 
-1. CLI 显式参数
+1. CLI explicit arguments
 2. `skill/config.json`
-3. 系统 `PATH`
-4. 内建命令名默认值
-5. 报错
+3. System `PATH`
+4. Built-in command name defaults
+5. Raise error
 
-规则：
+Rules:
 
-- 不从 `.embeddedskills/config.json` 读取工具绝对路径
-- 不从 `state.json` 回退工具路径
-- 若 `PATH` 命中多个候选，优先使用 `shutil.which()` 返回的首个结果
+- Do not read absolute tool paths from `.embeddedskills/config.json`
+- Do not fall back tool paths from `state.json`
+- If multiple candidates are matched in `PATH`, prefer the first result returned by `shutil.which()`
 
-### B. 工程/硬件配置参数
+### B. Project / Hardware Configuration Parameters
 
-如：
+Examples:
 
 - `project`
 - `target`
@@ -138,46 +138,46 @@
 - `adapter_speed`
 - `connect_under_reset`
 
-统一优先级：
+Unified precedence:
 
-1. CLI 显式参数
+1. CLI explicit arguments
 2. `.embeddedskills/config.json`
 3. `.embeddedskills/state.json`
-4. 自动发现
-5. 内建默认值
-6. 询问用户或报错
+4. Auto-discovery
+5. Built-in defaults
+6. Prompt user or raise error
 
-规则：
+Rules:
 
-- 不从 `skill/config.json` 读取这类工程真值参数
-- `state.json` 仅作为最近一次成功结果的回退
-- 自动发现只能用于“可枚举且歧义可控”的参数，如单一工程、单一串口、单一 CAN 接口
+- Do not read project truth parameters from `skill/config.json`
+- `state.json` is only a fallback for the most recent successful result
+- Auto-discovery can only be used for "enumerable and unambiguous" parameters, such as a single project, a single serial port, or a single CAN interface
 
-### C. 产物/输入文件路径参数
+### C. Artifact / Input File Path Parameters
 
-如：
+Examples:
 
 - `elf`
 - `file`
 - `flash_file`
 - `debug_file`
 
-统一优先级：
+Unified precedence:
 
-1. CLI 显式参数
+1. CLI explicit arguments
 2. `.embeddedskills/config.json`
 3. `.embeddedskills/state.json`
-4. 工作区搜索
-5. 报错
+4. Workspace search
+5. Raise error
 
-规则：
+Rules:
 
-- 允许从 `state.json` 回退上次成功构建产物
-- 工作区搜索必须可解释，优先搜索最近一次构建目录或约定目录，不允许无界递归猜测
+- Fallback to the artifact of the last successful build from `state.json` is allowed
+- Workspace search must be explainable, prioritizing the latest build directory or conventional directories; unbounded recursive guessing is not permitted
 
-### D. 运行时端口/日志/观测参数
+### D. Runtime Port / Log / Observation Parameters
 
-如：
+Examples:
 
 - `gdb_port`
 - `telnet_port`
@@ -185,48 +185,48 @@
 - `log_dir`
 - `capture_format`
 
-统一优先级：
+Unified precedence:
 
-1. CLI 显式参数
+1. CLI explicit arguments
 2. `.embeddedskills/config.json`
 3. `skill/config.json`
 4. `.embeddedskills/state.json`
-5. 内建默认值
+5. Built-in defaults
 
-规则：
+Rules:
 
-- `log_dir` 属于工程级优先参数，优先取工程配置
-- 端口类参数允许环境级提供机器默认值
+- `log_dir` is a project-level priority parameter, prioritizing project configuration
+- Port-like parameters allow machine defaults to be provided at the environment level
 
-### E. workflow 兼容覆盖文件
+### E. workflow Compatibility Override File
 
-仅 `workflow` 保留 `--config` 兼容入口。
+Only `workflow` retains the `--config` compatibility entry point.
 
-优先级：
+Precedence:
 
-1. CLI 显式参数
-2. `--config` 指向的兼容配置文件
+1. CLI explicit arguments
+2. Compatibility config file pointed to by `--config`
 3. `.embeddedskills/config.json`
-4. 自动发现
-5. 报错
+4. Auto-discovery
+5. Raise error
 
-说明：
+Note:
 
-- 该层仅用于兼容旧用法，不作为其他 skill 的通用机制
+- This layer is only used for backward compatibility with legacy usage and does not serve as a general mechanism for other skills
 
-## 系统 PATH 主动探测规范
+## System PATH Proactive Probing Specification
 
-所有需要外部工具的 skill 必须主动探测系统 `PATH`。
+All skills requiring external tools must proactively probe the system `PATH`.
 
-### 探测要求
+### Probing Requirements
 
-1. 优先使用 Python `shutil.which()`
-2. 允许为同一工具定义候选命令名列表，**Linux 名在前，Windows 名作为最小兼容层放在末尾**
-3. `PATH` 未命中时，可继续探测该工具的常见安装前缀（如 `/opt/SEGGER/JLink`、`/usr/share/openocd/scripts`）
-4. 命中后应记录绝对路径
-5. 未命中时再进入默认值或报错分支
+1. Prefer using Python `shutil.which()`
+2. Define candidate command name lists for the same tool, **with Linux names first and Windows names at the end as a minimal compatibility layer**
+3. If no match in `PATH`, probe common installation prefixes for the tool (e.g., `/opt/SEGGER/JLink`, `/usr/share/openocd/scripts`)
+4. Record the absolute path upon a match
+5. Proceed to default values or error branches only when probing fails
 
-### 候选命令示例
+### Candidate Command Examples
 
 - `cmake`: `["cmake", "cmake.exe"]`
 - `probe-rs`: `["probe-rs", "probe-rs.exe"]`
@@ -236,70 +236,70 @@
 - J-Link GDB Server: `["JLinkGDBServerCLExe", "JLinkGDBServerCL.exe"]`
 - `tshark`: `["tshark", "tshark.exe"]`
 
-### 来源标记
+### Source Tagging
 
-命中 `PATH` 时，`parameter_sources` 统一记为：
+When matching `PATH`, `parameter_sources` must be uniformly recorded as:
 
 - `path:cmake`
 - `path:probe-rs`
 - `path:arm-none-eabi-gdb`
 
-不要只记录成模糊的 `path`。
+Do not record as an ambiguous `path`.
 
-命中安装目录（而非 `PATH`）时，统一记为 `install_dir:<绝对路径>`，例如 `install_dir:/opt/SEGGER/JLink/JLinkExe`。
+When matching an installation directory (instead of `PATH`), uniformly record as `install_dir:<absolute_path>`, for example `install_dir:/opt/SEGGER/JLink/JLinkExe`.
 
-## 自动写回规范
+## Automatic Writeback Specification
 
-### 写回 `.embeddedskills/config.json`
+### Writeback to `.embeddedskills/config.json`
 
-仅允许写回“工程级已确认参数”：
+Only allowed to write back "confirmed project-level parameters":
 
-- 单一候选自动发现成功后的工程参数
-- 用户执行成功后确认有效的 `device/chip/interface/target/preset/project`
+- Project parameters after successful auto-discovery with a single candidate
+- `device/chip/interface/target/preset/project` confirmed valid after successful user execution
 - `workflow.preferred_*`
 
-### 写回 `.embeddedskills/state.json`
+### Writeback to `.embeddedskills/state.json`
 
-写回最近一次成功运行记录：
+Write back the record of the most recent successful run:
 
 - `last_build`
 - `last_flash`
 - `last_debug`
 - `last_observe`
-- 技术上可复用的产物路径
+- Technically reusable artifact paths
 
-### 不自动写回 `skill/config.json`
+### Do Not Automatically Write Back to `skill/config.json`
 
-即使工具通过 `PATH` 成功发现，也不自动写回 `skill/config.json`。
+Even if a tool is successfully discovered via `PATH`, do not automatically write back to `skill/config.json`.
 
-原因：
+Reasons:
 
-- `skill/config.json` 是本机显式配置，不应被一次临时命中自动污染
-- 如果未来需要持久化 PATH 命中结果，应由用户显式确认
+- `skill/config.json` is a local machine explicit configuration and should not be contaminated by a transient match
+- If persisting PATH match results is desired in the future, it must be explicitly confirmed by the user
 
-## 缺失参数处理
+## Handling Missing Parameters
 
-### 允许自动发现
+### Allowed Auto-Discovery
 
-仅限以下场景：
+Limited to the following scenarios:
 
-- 扫描后只有一个工程
-- 扫描后只有一个串口
-- 扫描后只有一个 CAN 接口
-- 工作区中只有一个明显匹配的构建产物
+- Exactly one project found after scanning
+- Exactly one serial port found after scanning
+- Exactly one CAN interface found after scanning
+- Exactly one clearly matched build artifact in the workspace
 
-### 不允许自动猜测
+### Disallowed Automatic Guessing
 
-以下参数缺失时必须报错或要求用户明确指定：
+When the following parameters are missing, an error must be raised or the user must be prompted to specify explicitly:
 
-- 多个候选中的 `device`
-- 多个候选中的探针序列号
-- 多个候选中的 `board/interface/target`
-- `.bin` 烧录地址
+- `device` among multiple candidates
+- Probe serial number among multiple candidates
+- `board/interface/target` among multiple candidates
+- `.bin` flash address
 
-## 统一实现建议
+## Unified Implementation Recommendations
 
-后续应收敛为一个通用 resolver，至少支持：
+Future implementations should converge into a common resolver supporting at least:
 
 - `cli_value`
 - `project_config`
@@ -311,25 +311,25 @@
 - `normalize_as_path`
 - `source_policy`
 
-其中 `source_policy` 用于声明当前参数属于哪一类：
+Where `source_policy` declares which category the parameter belongs to:
 
 - `tool_exe`
 - `project_param`
 - `artifact_path`
 - `runtime_option`
 
-## 与当前仓库的差异
+## Differences from the Current Repository
 
-本规范生效后，以下行为需要统一修正：
+Once this specification is effective, the following behaviors need to be updated:
 
-- `can / serial / net` 的 helper 文档与实际调用不一致
-- `jlink` 和 `openocd` 的 `SKILL.md` 前后存在两套优先级描述
-- `openocd_telnet.py` 需要与其他 `openocd_*` 脚本对齐
-- `probe-rs` 文档需要补充 `PATH` 主动探测层
-- `README.md` 与 `docs/getting-started.md` 的“三层配置”描述需要升级为包含 `PATH` 的统一模型
+- Discrepancies between helper documentation and actual invocations in `can / serial / net`
+- Two sets of precedence descriptions present in `SKILL.md` of `jlink` and `openocd`
+- Alignment of `openocd_telnet.py` with other `openocd_*` scripts
+- Addition of the `PATH` proactive probing tier in `probe-rs` documentation
+- Upgrading the "three-layer configuration" description in `README.md` and `docs/getting-started.md` to the unified model including `PATH`
 
-## 统一对外表述
+## Unified External Statement
 
-面向用户时，推荐统一表述为：
+When presenting to users, the recommended unified statement is:
 
-> 参数优先级按参数类型解析。工程参数优先读取 CLI 和 `.embeddedskills/config.json`，工具路径优先读取 CLI、`skill/config.json` 和系统 `PATH`，运行历史只作为 `state.json` 回退来源。
+> Parameter precedence is resolved according to parameter type. Project parameters prioritize CLI and `.embeddedskills/config.json`, tool paths prioritize CLI, `skill/config.json`, and system `PATH`, and runtime history only serves as a fallback source from `state.json`.
