@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -15,6 +16,44 @@ STATE_DIR_NAME = ".embeddedskills"
 STATE_FILE_NAME = "state.json"
 PROJECT_CONFIG_FILE_NAME = "config.json"
 SKILL_NAME = "probe-rs"
+
+# Command names, Linux first, Windows names kept as fallback.
+PROBE_RS_CANDIDATES = ("probe-rs", "probe-rs.exe")
+ARM_GDB_CANDIDATES = ("arm-none-eabi-gdb", "gdb-multiarch", "arm-none-eabi-gdb.exe")
+
+
+def resolve_path_candidate(candidates: tuple[str, ...] | list[str] | None) -> tuple[str, str]:
+    """Probe PATH for the first available candidate command name."""
+    for candidate in candidates or []:
+        if not candidate:
+            continue
+        resolved = shutil.which(str(candidate))
+        if resolved:
+            return resolved, f"path:{candidate}"
+    return "", ""
+
+
+def resolve_probe_rs_exe(cli_value: Any, config: dict | None = None) -> tuple[str, str]:
+    """Resolve the probe-rs command: CLI > skill/config.json > PATH > command name."""
+    if cli_value:
+        return str(cli_value), "cli"
+    configured = (config or {}).get("exe")
+    if configured:
+        return str(configured), "config:exe"
+    resolved, source = resolve_path_candidate(PROBE_RS_CANDIDATES)
+    if resolved:
+        return resolved, source
+    return "probe-rs", "default:probe-rs"
+
+
+def resolve_arm_gdb_exe(cli_value: Any, config: dict | None = None) -> tuple[str, str]:
+    """Resolve arm-none-eabi-gdb: CLI > skill/config.json > PATH."""
+    if cli_value:
+        return str(cli_value), "cli"
+    configured = (config or {}).get("gdb_exe")
+    if configured:
+        return str(configured), "config:gdb_exe"
+    return resolve_path_candidate(ARM_GDB_CANDIDATES)
 
 
 def now_iso() -> str:

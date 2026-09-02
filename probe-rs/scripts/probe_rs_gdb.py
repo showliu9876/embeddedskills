@@ -10,7 +10,6 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from shutil import which
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -33,6 +32,8 @@ from probe_rs_runtime import (  # noqa: E402
     now_iso,
     output_json,
     parameter_context,
+    resolve_arm_gdb_exe,
+    resolve_probe_rs_exe,
     save_project_config,
     update_state_entry,
     workspace_root,
@@ -143,17 +144,8 @@ def _state_lookup(state: dict) -> dict:
 def resolve_probe_params(args, config: dict, project_config: dict, state_lookup: dict) -> tuple[dict, dict]:
     parameter_sources: dict[str, str] = {}
 
-    exe = args.exe if not is_missing(args.exe) else config.get("exe") or "probe-rs"
-    parameter_sources["exe"] = "cli" if not is_missing(args.exe) else ("config:exe" if config.get("exe") else "default")
-
-    gdb_exe = args.gdb_exe if not is_missing(args.gdb_exe) else config.get("gdb_exe")
-    gdb_source = "cli" if not is_missing(args.gdb_exe) else ("config:gdb_exe" if config.get("gdb_exe") else "")
-    if is_missing(gdb_exe):
-        discovered = which("arm-none-eabi-gdb") or which("arm-none-eabi-gdb.exe")
-        if discovered:
-            gdb_exe = discovered
-            gdb_source = "path"
-    parameter_sources["gdb_exe"] = gdb_source
+    exe, parameter_sources["exe"] = resolve_probe_rs_exe(args.exe, config)
+    gdb_exe, parameter_sources["gdb_exe"] = resolve_arm_gdb_exe(args.gdb_exe, config)
 
     chip = args.chip
     chip_source = "cli"

@@ -12,7 +12,7 @@ argument-hint: "[list|info|flash|erase|reset|read-mem|write-mem|attach|run|gdb|r
 
 本 skill 提供 `probe-rs` CLI 的结构化包装，覆盖探针发现、目标信息、烧录、复位、内存读写、one-shot GDB 调试和 RTT 日志读取。
 
-Windows 下优先使用 `py -3` 调用脚本；若 `arm-none-eabi-gdb` 已在 `PATH` 中，`gdb` 子命令可自动发现，不强依赖 skill `config.json`。
+脚本使用系统 `python3` 调用；若 `probe-rs`、`arm-none-eabi-gdb`（或 `gdb-multiarch`）已在 `PATH` 中，可自动发现，不强依赖 skill `config.json`。
 
 ## 配置
 
@@ -23,7 +23,7 @@ Windows 下优先使用 `py -3` 调用脚本；若 `arm-none-eabi-gdb` 已在 `P
 ```json
 {
   "exe": "probe-rs",
-  "gdb_exe": "C:\\Program Files\\Arm\\GNU Toolchain mingw-w64-x86_64-arm-none-eabi\\bin\\arm-none-eabi-gdb.exe",
+  "gdb_exe": "/usr/bin/arm-none-eabi-gdb",
   "gdb_port": 3333,
   "dap_port": 50000,
   "operation_mode": 1
@@ -103,4 +103,5 @@ py -3 <skill-dir>/scripts/probe_rs_rtt.py --chip STM32F407VGTx --json
 - 多探针场景建议显式提供 `--probe`；若未检测到任何探针，应提示用户检查 USB 连接并重试；若探针配置错误（如 VID:PID 不匹配），应报告具体错误信息并建议运行 `list` 子命令确认可用探针
 - `.bin` 烧录必须显式提供地址
 - `workflow build-debug` 只走 one-shot 诊断包装，不启动需要人工接管的长期 DAP 会话
-- Windows 下若要用 `probe-rs` 驱动 `J-Link`，通常需要切换到 `WinUSB`，这会影响 SEGGER 官方工具继续使用；若仍依赖 J-Link 官方工具链，优先继续用现有 `jlink` skill
+- Linux 下非 root 用户访问探针需要 udev 规则；`probe-rs` 官方提供 `69-probe-rs.rules`，放入 `/etc/udev/rules.d/` 后执行 `sudo udevadm control --reload` 并重新插拔探针
+- `probe-rs` 与 SEGGER 官方工具会争用同一个 J-Link 设备，两者不要同时运行；若仍依赖 J-Link 官方工具链，优先继续用现有 `jlink` skill

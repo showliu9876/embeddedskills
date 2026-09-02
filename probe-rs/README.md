@@ -33,4 +33,5 @@
 
 - `probe-rs` 默认依赖外部官方 CLI，不在本仓库内代管安装器
 - `workflow` 中的 `probe-rs` 只接入 one-shot 调试，不直接暴露交互式 DAP 会话
-- Windows 下如需让 `probe-rs` 访问 `J-Link`，通常需要将驱动切换到 `WinUSB`；这可能导致 SEGGER 官方工具不可用
+- Linux 下非 root 用户访问探针需安装 `probe-rs` 官方 udev 规则（`69-probe-rs.rules` → `/etc/udev/rules.d/`），并执行 `sudo udevadm control --reload`
+- `probe-rs` 与 SEGGER 官方工具会争用同一个 J-Link 设备，不要同时运行
