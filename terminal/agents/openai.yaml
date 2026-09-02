@@ -1,4 +1,4 @@
 interface:
   display_name: "Interactive Terminal"
-  short_description: "管理串口、SSH、本地 Shell 的双向交互终端会话"
+  short_description: "Manage bidirectional interactive terminal sessions for serial, SSH, and local shell"
   default_prompt: "Use $terminal to open and drive a bidirectional serial, SSH, or local terminal session."

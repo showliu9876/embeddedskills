@@ -224,7 +224,7 @@ class SerialTransport:
         try:
             import serial
         except ImportError as exc:
-            raise RuntimeError("需要安装 pyserial：python -m pip install pyserial") from exc
+            raise RuntimeError("pyserial is required: python -m pip install pyserial") from exc
         self.ser = serial.Serial(
             port=self.spec["port"],
             baudrate=int(self.spec.get("baudrate") or 115200),
@@ -299,7 +299,7 @@ class TerminalServer:
     def handle(self, request: dict[str, Any]) -> dict[str, Any]:
         command = request.get("command")
         if command == "status":
-            return json_result("ok", "status", "会话在线", details={**self.spec, **self.transport.status()})
+            return json_result("ok", "status", "session online", details={**self.spec, **self.transport.status()})
         if command == "read":
             timeout = float(request.get("timeout") or 0)
             deadline = time.monotonic() + max(0.0, timeout)
@@ -311,7 +311,7 @@ class TerminalServer:
             return json_result(
                 "ok",
                 "read",
-                f"读取 {len(data)} 字节",
+                f"read {len(data)} bytes",
                 details={"session": self.spec["session_id"], "bytes": len(data), "text": text},
             )
         if command == "send":
@@ -321,13 +321,13 @@ class TerminalServer:
             return json_result(
                 "ok",
                 "send",
-                f"写入 {len(payload)} 字节",
+                f"wrote {len(payload)} bytes",
                 details={"session": self.spec["session_id"], "bytes": len(payload)},
             )
         if command == "stop":
             self.stop_event.set()
-            return json_result("ok", "stop", "会话停止", details={"session": self.spec["session_id"]})
-        return error_result("request", "unknown_command", f"未知命令：{command}")
+            return json_result("ok", "stop", "session stopped", details={"session": self.spec["session_id"]})
+        return error_result("request", "unknown_command", f"unknown command: {command}")
 
 
 def serve(spec: dict[str, Any]) -> int:
@@ -382,21 +382,21 @@ def request_session(record: dict[str, Any], payload: dict[str, Any], timeout: fl
         raw = b"".join(chunks).split(b"\n", 1)[0]
         return json.loads(raw.decode("utf-8"))
     except OSError as exc:
-        return error_result("request", "session_unreachable", "会话不可达，可能已退出", reason=str(exc))
+        return error_result("request", "session_unreachable", "session unreachable, may have exited", reason=str(exc))
 
 
 def command_start(args: argparse.Namespace) -> dict[str, Any]:
     session_id = sanitize_session_id(args.name, args.backend)
     sessions = sessions_from_state(args.workspace)
     if session_id in sessions:
-        return error_result("start", "session_exists", f"会话已存在：{session_id}")
+        return error_result("start", "session_exists", f"session already exists: {session_id}")
 
     if args.backend == "serial" and not args.port:
-        return error_result("start", "missing_port", "serial 后端必须指定 --port")
+        return error_result("start", "missing_port", "--port is required for serial backend")
     if args.backend == "ssh" and not args.host:
-        return error_result("start", "missing_host", "ssh 后端必须指定 --host")
+        return error_result("start", "missing_host", "--host is required for ssh backend")
     if args.backend == "ssh" and shutil.which("ssh") is None:
-        return error_result("start", "ssh_not_found", "未找到 OpenSSH 客户端 ssh")
+        return error_result("start", "ssh_not_found", "OpenSSH client ssh not found")
 
     tcp_port = find_free_tcp_port()
     log_dir = logs_dir(args.workspace)
@@ -449,10 +449,10 @@ def command_start(args: argparse.Namespace) -> dict[str, Any]:
         response = request_session(record, {"command": "status"}, timeout=0.2)
         if response.get("status") == "ok":
             update_session(args.workspace, session_id, record)
-            return json_result("ok", "start", f"已启动 {args.backend} 会话：{session_id}", details=record)
+            return json_result("ok", "start", f"started {args.backend} session: {session_id}", details=record)
         if proc.poll() is not None:
             break
-    return error_result("start", "start_failed", "后台终端会话启动失败", log_file=str(log_file))
+    return error_result("start", "start_failed", "failed to start background terminal session", log_file=str(log_file))
 
 
 def command_list(args: argparse.Namespace) -> dict[str, Any]:
@@ -466,20 +466,20 @@ def command_list(args: argparse.Namespace) -> dict[str, Any]:
             "record": record,
             "status": response.get("details", {}),
         })
-    return json_result("ok", "list", f"发现 {len(items)} 个会话", details={"sessions": items})
+    return json_result("ok", "list", f"found {len(items)} session(s)", details={"sessions": items})
 
 
 def command_status(args: argparse.Namespace) -> dict[str, Any]:
     record = sessions_from_state(args.workspace).get(args.session)
     if not record:
-        return error_result("status", "session_not_found", f"未找到会话：{args.session}")
+        return error_result("status", "session_not_found", f"session not found: {args.session}")
     return request_session(record, {"command": "status"}, timeout=args.timeout)
 
 
 def command_send(args: argparse.Namespace) -> dict[str, Any]:
     record = sessions_from_state(args.workspace).get(args.session)
     if not record:
-        return error_result("send", "session_not_found", f"未找到会话：{args.session}")
+        return error_result("send", "session_not_found", f"session not found: {args.session}")
     data = args.data
     if args.hex:
         if args.crlf:
@@ -497,7 +497,7 @@ def command_send(args: argparse.Namespace) -> dict[str, Any]:
 def command_read(args: argparse.Namespace) -> dict[str, Any]:
     record = sessions_from_state(args.workspace).get(args.session)
     if not record:
-        return error_result("read", "session_not_found", f"未找到会话：{args.session}")
+        return error_result("read", "session_not_found", f"session not found: {args.session}")
     payload = {"command": "read", "timeout": args.timeout, "encoding": args.encoding or record.get("encoding")}
     return request_session(record, payload, timeout=max(1.0, args.timeout + 1.0))
 
@@ -505,7 +505,7 @@ def command_read(args: argparse.Namespace) -> dict[str, Any]:
 def command_stop(args: argparse.Namespace) -> dict[str, Any]:
     record = sessions_from_state(args.workspace).get(args.session)
     if not record:
-        return error_result("stop", "session_not_found", f"未找到会话：{args.session}")
+        return error_result("stop", "session_not_found", f"session not found: {args.session}")
     response = request_session(record, {"command": "stop"}, timeout=args.timeout)
     remove_session(args.workspace, args.session)
     return response
@@ -514,7 +514,7 @@ def command_stop(args: argparse.Namespace) -> dict[str, Any]:
 def command_attach(args: argparse.Namespace) -> int:
     record = sessions_from_state(args.workspace).get(args.session)
     if not record:
-        print_json(error_result("attach", "session_not_found", f"未找到会话：{args.session}"))
+        print_json(error_result("attach", "session_not_found", f"session not found: {args.session}"))
         return 1
     stop_event = threading.Event()
 
@@ -539,10 +539,10 @@ def command_attach(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="双向交互终端会话管理")
+    parser = argparse.ArgumentParser(description="Bidirectional interactive terminal session management")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p_start = sub.add_parser("start", help="启动后台交互会话")
+    p_start = sub.add_parser("start", help="Start background interactive session")
     p_start.add_argument("backend", choices=["serial", "ssh", "local"])
     p_start.add_argument("--name")
     p_start.add_argument("--workspace")
@@ -558,15 +558,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_start.add_argument("--shell")
     p_start.add_argument("--cwd")
 
-    p_list = sub.add_parser("list", help="列出现有会话")
+    p_list = sub.add_parser("list", help="List existing sessions")
     p_list.add_argument("--workspace")
 
-    p_status = sub.add_parser("status", help="查询会话状态")
+    p_status = sub.add_parser("status", help="Query session status")
     p_status.add_argument("session")
     p_status.add_argument("--workspace")
     p_status.add_argument("--timeout", type=float, default=1.0)
 
-    p_send = sub.add_parser("send", help="向会话写入数据")
+    p_send = sub.add_parser("send", help="Send data to session")
     p_send.add_argument("session")
     p_send.add_argument("data")
     p_send.add_argument("--workspace")
@@ -576,19 +576,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_send.add_argument("--crlf", action="store_true")
     p_send.add_argument("--lf", action="store_true")
 
-    p_read = sub.add_parser("read", help="读取并清空输出缓冲")
+    p_read = sub.add_parser("read", help="Read and drain output buffer")
     p_read.add_argument("session")
     p_read.add_argument("--workspace")
     p_read.add_argument("--encoding")
     p_read.add_argument("--timeout", type=float, default=0.0)
 
-    p_attach = sub.add_parser("attach", help="前台行模式接入会话")
+    p_attach = sub.add_parser("attach", help="Attach to session in foreground line mode")
     p_attach.add_argument("session")
     p_attach.add_argument("--workspace")
     p_attach.add_argument("--encoding")
     p_attach.add_argument("--crlf", action="store_true")
 
-    p_stop = sub.add_parser("stop", help="停止会话")
+    p_stop = sub.add_parser("stop", help="Stop session")
     p_stop.add_argument("session")
     p_stop.add_argument("--workspace")
     p_stop.add_argument("--timeout", type=float, default=3.0)
