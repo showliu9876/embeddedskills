@@ -19,6 +19,11 @@
 
 ---
 
+> [!NOTE]
+> This repository is a fork of [zhinkgit/embeddedskills](https://github.com/zhinkgit/embeddedskills.git).
+
+---
+
 ## ✨ Three Core Advantages
 
 ### 🔁 Embedded AI Workflow Closed Loop
@@ -146,7 +151,7 @@ git clone https://github.com/zhinkgit/embeddedskills.git .codex/skills
 ```
 
 > [!NOTE]
-> **[→ Full Installation & Usage Guide](docs/getting-started.en.md)** — includes screenshot demonstrations and configuration instructions.
+> **[→ Full Installation & Usage Guide](docs/getting-started.md)** — includes screenshot demonstrations and configuration instructions.
 
 ---
 

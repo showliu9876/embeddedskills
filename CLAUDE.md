@@ -13,8 +13,11 @@ Each top-level directory (`keil/`, `gcc/`, `eide/`, `jlink/`, `openocd/`, `probe
 system, no package manifest, no test suite, and no CI. The deliverable is the Python scripts plus
 the `SKILL.md` that describes them to an AI agent.
 
-Docs are written in Simplified Chinese; match that when editing `SKILL.md` / `README.md`.
+Docs are written in English; match that when editing `SKILL.md` / `README.md`.
 Code identifiers and log strings stay English.
+
+This repo is a fork of `https://github.com/zhinkgit/embeddedskills.git`; upstream URLs in the
+docs still point there.
 
 ## Running scripts
 
@@ -162,5 +165,5 @@ docs vs. actual calls, two conflicting priority descriptions inside `jlink` and 
 docs, and the "three-layer config" wording in `README.md` / `docs/getting-started.md` that predates
 the PATH layer. Prefer converging on the spec rather than copying a neighbouring file's older style.
 
-Both `README.md` and `README.en.md`, and both `docs/getting-started.md` and
-`docs/getting-started.en.md`, must be updated together.
+The former `README.en.md` / `docs/getting-started.en.md` duplicates were removed once the docs
+became English-only. Do not reintroduce them.
