@@ -19,6 +19,13 @@ SKILL_NAME = "probe-rs"
 
 # Command names, Linux first, Windows names kept as fallback.
 PROBE_RS_CANDIDATES = ("probe-rs", "probe-rs.exe")
+# Standard probe-rs install prefixes, probed only after a PATH miss (these are often
+# missing from PATH when the agent is not started from a login shell).
+PROBE_RS_INSTALL_DIRS = (
+    Path("/home/linuxbrew/.linuxbrew/bin"),  # Homebrew on Linux (default prefix)
+    Path.home() / ".linuxbrew" / "bin",      # Homebrew on Linux (per-user prefix)
+    Path.home() / ".cargo" / "bin",          # official probe-rs-tools installer
+)
 ARM_GDB_CANDIDATES = ("arm-none-eabi-gdb", "gdb-multiarch", "arm-none-eabi-gdb.exe")
 
 
@@ -34,7 +41,7 @@ def resolve_path_candidate(candidates: tuple[str, ...] | list[str] | None) -> tu
 
 
 def resolve_probe_rs_exe(cli_value: Any, config: dict | None = None) -> tuple[str, str]:
-    """Resolve the probe-rs command: CLI > skill/config.json > PATH > command name."""
+    """Resolve the probe-rs command: CLI > skill/config.json > PATH > install dir > command name."""
     if cli_value:
         return str(cli_value), "cli"
     configured = (config or {}).get("exe")
@@ -43,6 +50,10 @@ def resolve_probe_rs_exe(cli_value: Any, config: dict | None = None) -> tuple[st
     resolved, source = resolve_path_candidate(PROBE_RS_CANDIDATES)
     if resolved:
         return resolved, source
+    for install_dir in PROBE_RS_INSTALL_DIRS:
+        candidate = install_dir / "probe-rs"
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate), f"install_dir:{install_dir}"
     return "probe-rs", "default:probe-rs"
 
 

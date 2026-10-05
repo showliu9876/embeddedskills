@@ -65,6 +65,10 @@ def infer_binary_format(file_path: str) -> str:
     return "elf"
 
 
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+PROBE_LINE_RE = re.compile(r"^\[\d+\]:")
+
+
 def parse_output(text: str, action: str) -> dict:
     parsed = {"raw": text}
     for pattern, code, message in ERROR_PATTERNS:
@@ -72,14 +76,14 @@ def parse_output(text: str, action: str) -> dict:
             return {"error_code": code, "error_message": message, "raw": text}
 
     if action == "list":
+        # Probe lines look like "[0]: J-Link (J-Link) (VID: 1366, PID: 0105, ...)"; everything
+        # else ("No debug probes were found.", colored WARN setup hints) is not a probe.
         probes = []
         for line in text.splitlines():
-            item = line.strip()
-            if not item or item.lower().startswith("the following debug probes were found"):
-                continue
-            probes.append(item)
-        if probes:
-            parsed["probes"] = probes
+            item = ANSI_ESCAPE_RE.sub("", line).strip()
+            if PROBE_LINE_RE.match(item):
+                probes.append(item)
+        parsed["probes"] = probes
     elif action == "read-mem":
         words = re.findall(r"\b[0-9a-fA-F]{2,16}\b", text)
         if words:
@@ -95,8 +99,9 @@ def parse_output(text: str, action: str) -> dict:
 
 
 def _summary(action: str, parsed: dict, fallback: str) -> str:
-    if action == "list" and parsed.get("probes"):
-        return f"Found {len(parsed['probes'])} debug probe(s)"
+    if action == "list":
+        count = len(parsed.get("probes") or [])
+        return f"Found {count} debug probe(s)" if count else "No debug probes found"
     if action == "flash":
         return "Flash successful"
     if action == "erase":
