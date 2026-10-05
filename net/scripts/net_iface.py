@@ -10,7 +10,7 @@ import sys
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-from net_runtime import parse_ipconfig, parse_tshark_interfaces
+from net_runtime import list_interfaces, parse_tshark_interfaces
 
 
 def main():
@@ -21,7 +21,7 @@ def main():
     parser.add_argument("--tshark-exe", default="tshark", help="Path to tshark executable")
     args = parser.parse_args()
 
-    interfaces = parse_ipconfig()
+    interfaces = list_interfaces()
 
     if args.filter:
         kw = args.filter.lower()

@@ -6,6 +6,7 @@ import io
 import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -22,12 +23,20 @@ from net_runtime import (
 )
 
 
+IS_WINDOWS = os.name == "nt"
+# Windows console tools emit the OEM code page (gbk on zh-CN); Linux tools emit UTF-8.
+TOOL_ENCODING = "gbk" if IS_WINDOWS else "utf-8"
+
+
 def icmp_ping(target, count=4, timeout_ms=1000):
-    """Use system ping command to perform ICMP test."""
+    """Use system ping command to perform ICMP test (Linux iputils first, Windows fallback)."""
     timeout_sec = max(1, timeout_ms // 1000)
-    cmd = ["ping", "-n", str(count), "-w", str(timeout_ms), target]
+    if IS_WINDOWS:
+        cmd = ["ping", "-n", str(count), "-w", str(timeout_ms), target]
+    else:
+        cmd = ["ping", "-c", str(count), "-W", str(timeout_sec), target]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding="gbk",
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding=TOOL_ENCODING,
                                 errors="replace", timeout=count * timeout_sec + 10)
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return {"target": target, "reachable": False, "error": "ping command timed out or unavailable"}
@@ -38,8 +47,10 @@ def icmp_ping(target, count=4, timeout_ms=1000):
     avg_ms = None
 
     for line in output.splitlines():
-        # Summary line
-        m = re.search(r"\u5df2\u53d1\u9001\s*=\s*(\d+).*\u5df2\u63a5\u6536\s*=\s*(\d+)", line)
+        # Summary line: Linux "4 packets transmitted, 4 received", then Windows zh-CN / en
+        m = re.search(r"(\d+)\s+packets transmitted,\s*(\d+)\s+(?:packets\s+)?received", line)
+        if not m:
+            m = re.search(r"\u5df2\u53d1\u9001\s*=\s*(\d+).*\u5df2\u63a5\u6536\s*=\s*(\d+)", line)
         if not m:
             m = re.search(r"Sent\s*=\s*(\d+).*Received\s*=\s*(\d+)", line, re.IGNORECASE)
         if m:
@@ -47,7 +58,11 @@ def icmp_ping(target, count=4, timeout_ms=1000):
             received = int(m.group(2))
             reachable = received > 0
 
-        # Average latency
+        # Average latency: Linux "rtt min/avg/max/mdev = a/b/c/d ms", then Windows zh-CN / en
+        m2 = re.search(r"min/avg/max[^=]*=\s*[\d.]+/([\d.]+)/", line)
+        if m2:
+            avg_ms = round(float(m2.group(1)), 1)
+            continue
         m2 = re.search(r"\u5e73\u5747\s*=\s*(\d+)ms", line)
         if not m2:
             m2 = re.search(r"Average\s*=\s*(\d+)ms", line, re.IGNORECASE)
@@ -79,15 +94,38 @@ def tcp_ping(target, port, timeout_ms=1000):
         return {"target": target, "port": port, "reachable": False, "error": str(e)}
 
 
+MAX_HOPS = 30
+
+
+def _is_inetutils_traceroute():
+    """GNU inetutils traceroute has no -n (it never resolves names unless --resolve-hostnames)."""
+    try:
+        result = subprocess.run(["traceroute", "--version"], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return "inetutils" in (result.stdout + result.stderr).lower()
+
+
+def traceroute_command(target, timeout_ms):
+    """Pick a route-tracing command: traceroute, then tracepath, Windows tracert last."""
+    timeout_sec = max(1, timeout_ms // 1000)
+    if not IS_WINDOWS and shutil.which("traceroute"):
+        numeric = [] if _is_inetutils_traceroute() else ["-n"]
+        return ["traceroute", *numeric, "-w", str(timeout_sec), "-m", str(MAX_HOPS), target]
+    if not IS_WINDOWS and shutil.which("tracepath"):
+        return ["tracepath", "-n", "-m", str(MAX_HOPS), target]
+    return ["tracert", "-d", "-w", str(timeout_ms), "-h", str(MAX_HOPS), target]
+
+
 def traceroute(target, timeout_ms=1000):
     """Route tracing."""
     timeout_sec = max(1, timeout_ms // 1000)
-    cmd = ["tracert", "-d", "-w", str(timeout_ms), "-h", "30", target]
+    cmd = traceroute_command(target, timeout_ms)
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding="gbk",
-                                errors="replace", timeout=60)
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding=TOOL_ENCODING,
+                                errors="replace", timeout=max(60, MAX_HOPS * timeout_sec + 10))
     except (FileNotFoundError, subprocess.TimeoutExpired):
-        return {"target": target, "hops": [], "error": "tracert timed out or unavailable"}
+        return {"target": target, "hops": [], "error": f"{cmd[0]} timed out or unavailable"}
 
     hops = []
     for line in result.stdout.splitlines():

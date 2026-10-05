@@ -296,6 +296,82 @@ def parse_tshark_interfaces(tshark_exe: str = "tshark") -> list[dict] | None:
     return interfaces
 
 
+def _run_ip_json(args: list[str]) -> list[dict] | None:
+    """Run `ip -j <args>` (iproute2) and return the parsed JSON list, or None when unavailable."""
+    ip_exe = shutil.which("ip")
+    if not ip_exe:
+        return None
+    try:
+        result = subprocess.run([ip_exe, "-j", *args], capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    try:
+        data = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, list) else None
+
+
+def _prefix_to_netmask(prefixlen: int) -> str:
+    """Convert an IPv4 prefix length (e.g. 24) to a dotted netmask (255.255.255.0)."""
+    mask = (0xFFFFFFFF << (32 - prefixlen)) & 0xFFFFFFFF if prefixlen else 0
+    return ".".join(str((mask >> shift) & 0xFF) for shift in (24, 16, 8, 0))
+
+
+def _default_gateways() -> dict[str, list[str]]:
+    """Map interface name -> default gateways from `ip -j route show default`."""
+    gateways: dict[str, list[str]] = {}
+    for route in _run_ip_json(["route", "show", "default"]) or []:
+        dev, gateway = route.get("dev"), route.get("gateway")
+        if dev and gateway:
+            gateways.setdefault(dev, []).append(gateway)
+    return gateways
+
+
+def parse_ip_addr() -> list[dict] | None:
+    """Linux: build interface records from `ip -j addr`, same shape as parse_ipconfig().
+
+    Returns None when iproute2 is unavailable so callers can fall back to ipconfig.
+    """
+    links = _run_ip_json(["addr", "show"])
+    if links is None:
+        return None
+    gateways = _default_gateways()
+    interfaces = []
+    for link in links:
+        name = link.get("ifname", "")
+        inet = [a for a in link.get("addr_info", []) if a.get("family") == "inet"]
+        ipv4_list = [a["local"] for a in inet if a.get("local")]
+        subnet_list = [_prefix_to_netmask(int(a.get("prefixlen", 0))) for a in inet if a.get("local")]
+        gateway_list = gateways.get(name, [])
+        is_up = link.get("operstate") == "UP" or (
+            link.get("operstate") == "UNKNOWN" and "UP" in link.get("flags", [])
+        )
+        interfaces.append({
+            "type": link.get("link_type", ""),
+            "name": name,
+            "description": ", ".join(link.get("altnames", [])),
+            "mac": link.get("address", "") if link.get("link_type") != "loopback" else "",
+            "ipv4": ipv4_list[0] if ipv4_list else "",
+            "ipv4_list": ipv4_list,
+            "subnet": subnet_list[0] if subnet_list else "",
+            "subnet_list": subnet_list,
+            "gateway": gateway_list[0] if gateway_list else "",
+            "gateway_list": gateway_list,
+            "dhcp": "enabled" if any(a.get("dynamic") for a in inet) else "",
+            "status": "up" if is_up else "down",
+        })
+    return interfaces
+
+
+def list_interfaces() -> list[dict]:
+    """Interface discovery: Linux iproute2 first, Windows `ipconfig /all` as trailing fallback."""
+    interfaces = parse_ip_addr()
+    return interfaces if interfaces is not None else parse_ipconfig()
+
+
 def parse_ipconfig() -> list[dict]:
     """Parse ipconfig /all output to get network interface information."""
     try:
