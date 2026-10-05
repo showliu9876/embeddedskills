@@ -127,6 +127,7 @@ def build_action_commands(
     bank: str = "",
     erase_mode: str = "auto",
     raw_commands: list[str] | None = None,
+    adapter_speed: str = "",
 ) -> tuple[list[str], str | None]:
     if action == "probe":
         return ["init", "targets", "shutdown"], None
@@ -135,7 +136,12 @@ def build_action_commands(
     if action == "flash-banks":
         return ["init", "flash banks", "shutdown"], None
     if action == "adapter-info":
-        return ["adapter name", "transport list", "adapter speed", "shutdown"], None
+        # OpenOCD 0.12 errors with "BUG: unknown adapter clock mode" when the speed is
+        # queried before one is configured, so only query it when a speed was set.
+        commands = ["adapter name", "transport list"]
+        if adapter_speed:
+            commands.append("adapter speed")
+        return commands + ["shutdown"], None
     if action == "flash":
         file_abs = os.path.abspath(file).replace("\\", "/")
         if file.lower().endswith(".bin"):
@@ -257,6 +263,7 @@ def run_openocd(
         bank=bank,
         erase_mode=erase_mode,
         raw_commands=raw_commands,
+        adapter_speed=adapter_speed,
     )
     if error_code:
         return {"status": "error", "action": action, "error": {"code": error_code, "message": f"Unknown action: {action}"}}
