@@ -61,6 +61,9 @@ Device parameters (device/interface/speed) are managed centrally in the workspac
 - `device`: Target chip model (e.g., STM32F407VG, GD32F470ZG)
 - `interface`: Debug interface, SWD or JTAG, defaults to SWD
 - `speed`: Debug speed in kHz, defaults to 4000
+- `jtag_conf` (optional, JTAG only): JTAG chain position `IRPre,DRPre`, defaults to `-1,-1` (auto-detect).
+  It is always passed as `-JTAGConf` for JTAG; without it `connect` prompts interactively and the rest
+  of the command script is silently skipped.
 
 Parameter resolution priority: **Explicit CLI arguments > `.embeddedskills/config.json` (Project-level) > `skill/config.json` (Machine-level) > `.embeddedskills/state.json` > Defaults/Error**
 
@@ -152,7 +155,8 @@ python <skill-dir>/scripts/jlink_exec.py step --device GD32F470ZG --count 3 --js
 python <skill-dir>/scripts/jlink_exec.py run-to --device GD32F470ZG --address 0x08001234 --timeout-ms 3000 --json
 ```
 
-Common optional arguments: `--interface SWD|JTAG`, `--speed 4000`, `--serial-no <serial>`, `--exe <JLinkExe path>`
+Common optional arguments: `--interface SWD|JTAG`, `--speed 4000`, `--serial-no <serial>`, `--exe <JLinkExe path>`,
+`--jtag-conf IRPre,DRPre` (JTAG only)
 
 ### jlink_rtt.py — RTT Log Capture
 

@@ -56,11 +56,23 @@ ERROR_PATTERNS = [
     (r"VTarget too low", "vtarget_low", "Target voltage too low. Check target board power supply."),
 ]
 
+# Default JTAG chain position: "-1,-1" lets J-Link auto-detect the device in the chain.
+DEFAULT_JTAG_CONF = "-1,-1"
 
-def build_jlink_cmd(exe: str, device: str, script_path: str, serial_no: str = "") -> list:
-    """Build J-Link Commander command line."""
+
+def build_jlink_cmd(exe: str, device: str, script_path: str, serial_no: str = "",
+                    interface: str = "", jtag_conf: str = DEFAULT_JTAG_CONF) -> list:
+    """Build J-Link Commander command line.
+
+    For JTAG, -JTAGConf must be given on the command line: otherwise "connect" prompts for the
+    JTAG chain position and silently swallows the remaining script commands.
+    """
     cmd = [exe, "-NoGui", "1", "-ExitOnError", "1", "-AutoConnect", "1"]
     cmd.extend(["-Device", device])
+    if interface:
+        cmd.extend(["-If", interface])
+        if interface.upper() == "JTAG":
+            cmd.extend(["-JTAGConf", jtag_conf or DEFAULT_JTAG_CONF])
     if serial_no:
         cmd.extend(["-SelectEmuBySN", serial_no])
     cmd.extend(["-CommandFile", script_path])
@@ -172,7 +184,7 @@ def run_jlink(exe: str, device: str, action: str, interface: str = "SWD",
               speed: str = "4000", serial_no: str = "", file: str = "",
               address: str = "", length: str = "256", value: str = "",
               width: str = "32", step_count: int = 1,
-              timeout_ms: str = "2000") -> dict:
+              timeout_ms: str = "2000", jtag_conf: str = DEFAULT_JTAG_CONF) -> dict:
     """Execute JLink Commander commands."""
     start_time = time.time()
 
@@ -235,7 +247,8 @@ def run_jlink(exe: str, device: str, action: str, interface: str = "SWD",
                 "error": {"code": "file_not_found", "message": f"Firmware file not found: {file}"},
             }
 
-        cmd = build_jlink_cmd(exe, device, script_path, serial_no)
+        cmd = build_jlink_cmd(exe, device, script_path, serial_no,
+                              interface=interface, jtag_conf=jtag_conf)
 
         try:
             proc = subprocess.run(
@@ -408,7 +421,19 @@ def resolve_device_params(args):
         serial_no = last_flash.get("serial_no") or last_debug.get("serial_no") or ""
         serial_no_source = "state" if not is_missing(serial_no) else ""
 
+    # jtag_conf: CLI > project config > default (auto-detect)
+    jtag_conf = getattr(args, "jtag_conf", None)
+    jtag_conf_source = "cli"
+    if is_missing(jtag_conf):
+        jtag_conf = project_config.get("jtag_conf")
+        jtag_conf_source = "project_config"
+    if is_missing(jtag_conf):
+        jtag_conf = DEFAULT_JTAG_CONF
+        jtag_conf_source = "default"
+
     return {
+        "jtag_conf": jtag_conf,
+        "jtag_conf_source": jtag_conf_source,
         "exe": exe,
         "exe_source": exe_source,
         "device": device,
@@ -437,6 +462,8 @@ def main():
     parser.add_argument("--width", default="32", choices=["8", "16", "32"], help="Data width")
     parser.add_argument("--count", type=int, default=1, help="Number of steps (for step)")
     parser.add_argument("--timeout-ms", default="2000", help="Timeout in milliseconds to wait for breakpoint hit in run-to")
+    parser.add_argument("--jtag-conf", default=None,
+                        help="JTAG chain position IRPre,DRPre (JTAG only, default -1,-1 = auto-detect)")
     parser.add_argument("--workspace", default=None, help="Workspace root directory, defaults to current directory")
     parser.add_argument("--json", action="store_true", dest="as_json")
 
@@ -517,6 +544,7 @@ def main():
         width=args.width,
         step_count=args.count,
         timeout_ms=args.timeout_ms,
+        jtag_conf=params["jtag_conf"],
     )
 
     # Write confirmed parameters back to project config upon successful execution
@@ -552,6 +580,7 @@ def main():
             "interface": params["interface_source"],
             "speed": params["speed_source"],
             "serial_no": params["serial_no_source"],
+            "jtag_conf": params["jtag_conf_source"],
         }
         output_json(result)
     else:
