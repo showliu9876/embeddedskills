@@ -64,3 +64,8 @@ class TestParseOutput:
         assert "error_code" not in parsed
         assert parsed["memory"][0] == {"address": "0x20000000",
                                        "data": "E59FF018 E59FF018 E59FF018 E59FF018"}
+
+    def test_info_reports_identified_core(self):
+        stdout = "S/N: 123456789\nVTref=3.358V\nFound Cortex-A9 r4p1\nJ-Link>exit\n"
+        parsed = jlink_exec.parse_output(stdout, "info")
+        assert parsed["core"] == "Cortex-A9 r4p1"

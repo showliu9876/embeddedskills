@@ -122,6 +122,9 @@ def parse_output(stdout: str, action: str) -> dict:
         sn = re.search(r"S/N:\s+(\d+)", stdout)
         vtarget = re.search(r"VTref=(\d+\.\d+)V", stdout)
         device_match = re.search(r"Device \"(.+?)\" selected", stdout)
+        core = re.search(r"Found (Cortex-\S+(?: r\d+p\d+)?)", stdout)
+        if core:
+            result["core"] = core.group(1)
         if fw:
             result["firmware"] = fw.group(1).strip()
         if sn:
