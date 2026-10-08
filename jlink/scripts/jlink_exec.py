@@ -35,8 +35,8 @@ TEMPLATES = {
     "info": "si {interface}\nspeed {speed}\nconnect\nsleep 200\nexit\n",
     "flash_hex": "si {interface}\nspeed {speed}\nconnect\nloadfile {file}\nr\ng\nexit\n",
     "flash_bin": "si {interface}\nspeed {speed}\nconnect\nloadbin {file},{address}\nr\ng\nexit\n",
-    "read_mem": "si {interface}\nspeed {speed}\nconnect\nhalt\nmem{width} {address},{length}\nexit\n",
-    "write_mem": "si {interface}\nspeed {speed}\nconnect\nhalt\nw{width} {address},{value}\nexit\n",
+    "read_mem": "si {interface}\nspeed {speed}\nconnect\nhalt\nmem{width} {address},{length}\n{resume_cmd}exit\n",
+    "write_mem": "si {interface}\nspeed {speed}\nconnect\nhalt\nw{width} {address},{value}\n{resume_cmd}exit\n",
     "regs": "si {interface}\nspeed {speed}\nconnect\nhalt\nregs\nexit\n",
     "reset": "si {interface}\nspeed {speed}\nconnect\nr\ng\nexit\n",
     "halt": "si {interface}\nspeed {speed}\nconnect\nhalt\nregs\nexit\n",
@@ -62,6 +62,17 @@ SCRIPT_END_MARKER = "J-Link>exit"
 
 # Default JTAG chain position: "-1,-1" lets J-Link auto-detect the device in the chain.
 DEFAULT_JTAG_CONF = "-1,-1"
+
+TEMPLATE_DEFAULTS = {
+    "interface": "SWD", "speed": "4000", "file": "", "address": "", "length": "256",
+    "value": "", "width": "32", "step_commands": "", "timeout_ms": "2000",
+}
+
+
+def render_script(template_key: str, resume: bool = False, **params) -> str:
+    """Render a command template; resume=True appends 'g' so the CPU keeps running afterwards."""
+    values = {**TEMPLATE_DEFAULTS, **params, "resume_cmd": "g\n" if resume else ""}
+    return TEMPLATES[template_key].format(**values)
 
 
 def build_jlink_cmd(exe: str, device: str, script_path: str, serial_no: str = "",
@@ -200,7 +211,8 @@ def run_jlink(exe: str, device: str, action: str, interface: str = "SWD",
               speed: str = "4000", serial_no: str = "", file: str = "",
               address: str = "", length: str = "256", value: str = "",
               width: str = "32", step_count: int = 1,
-              timeout_ms: str = "2000", jtag_conf: str = DEFAULT_JTAG_CONF) -> dict:
+              timeout_ms: str = "2000", jtag_conf: str = DEFAULT_JTAG_CONF,
+              resume: bool = False) -> dict:
     """Execute JLink Commander commands."""
     start_time = time.time()
 
@@ -213,14 +225,12 @@ def run_jlink(exe: str, device: str, action: str, interface: str = "SWD",
                     "action": action,
                     "error": {"code": "missing_address", "message": ".bin file requires flash address via --address"},
                 }
-            template = TEMPLATES["flash_bin"]
+            template_key = "flash_bin"
         else:
-            template = TEMPLATES["flash_hex"]
+            template_key = "flash_hex"
     else:
         template_key = action.replace("-", "_")
-        if template_key in TEMPLATES:
-            template = TEMPLATES[template_key]
-        else:
+        if template_key not in TEMPLATES:
             return {
                 "status": "error",
                 "action": action,
@@ -237,7 +247,8 @@ def run_jlink(exe: str, device: str, action: str, interface: str = "SWD",
         step_commands = "".join(["step\n" for _ in range(step_count)])
 
     # Render command script
-    script_content = template.format(
+    script_content = render_script(
+        template_key, resume=resume,
         interface=interface, speed=speed, file=file,
         address=address, length=length, value=value, width=w,
         step_commands=step_commands, timeout_ms=timeout_ms,
@@ -480,6 +491,8 @@ def main():
     parser.add_argument("--timeout-ms", default="2000", help="Timeout in milliseconds to wait for breakpoint hit in run-to")
     parser.add_argument("--jtag-conf", default=None,
                         help="JTAG chain position IRPre,DRPre (JTAG only, default -1,-1 = auto-detect)")
+    parser.add_argument("--resume", action="store_true",
+                        help="Resume CPU execution after read-mem / write-mem instead of leaving it halted")
     parser.add_argument("--workspace", default=None, help="Workspace root directory, defaults to current directory")
     parser.add_argument("--json", action="store_true", dest="as_json")
 
@@ -561,6 +574,7 @@ def main():
         step_count=args.count,
         timeout_ms=args.timeout_ms,
         jtag_conf=params["jtag_conf"],
+        resume=args.resume,
     )
 
     # Write confirmed parameters back to project config upon successful execution

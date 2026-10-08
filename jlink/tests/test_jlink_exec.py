@@ -3,6 +3,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
@@ -78,3 +80,17 @@ class TestParsePc:
     def test_cortex_a_format(self):
         stdout = "PC: (R15) = 200A8FC0, CPSR = 8000001F (System mode, ARM)"
         assert jlink_exec.parse_pc(stdout) == "0x200A8FC0"
+
+
+class TestTemplates:
+    @pytest.mark.parametrize("action", ["read_mem", "write_mem"])
+    def test_resume_appends_go_before_exit(self, action):
+        script = jlink_exec.render_script(action, resume=True, interface="JTAG", speed="4000",
+                                          address="0x20000000", length="4", value="0", width="32")
+        assert script.rstrip().endswith("g\nexit")
+
+    @pytest.mark.parametrize("action", ["read_mem", "write_mem"])
+    def test_default_leaves_cpu_halted(self, action):
+        script = jlink_exec.render_script(action, resume=False, interface="JTAG", speed="4000",
+                                          address="0x20000000", length="4", value="0", width="32")
+        assert "\ng\n" not in script

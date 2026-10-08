@@ -156,8 +156,9 @@ python <skill-dir>/scripts/jlink_exec.py run-to --device GD32F470ZG --address 0x
 ```
 
 Common optional arguments: `--interface SWD|JTAG`, `--speed 4000`, `--serial-no <serial>`, `--exe <JLinkExe path>`,
-`--jtag-conf IRPre,DRPre` (JTAG only)
+`--jtag-conf IRPre,DRPre` (JTAG only), `--width 8|16|32` (read-mem / write-mem)
 
+`read-mem` and `write-mem` halt the CPU and leave it halted by default; add `--resume` to let it keep running.
 If JLinkExe stops before the end of the command script, the result is an error with code `script_aborted`
 (the target was most likely never connected).
 
