@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -31,6 +32,19 @@ from workflow_runtime import (  # noqa: E402
 
 
 PYTHON_EXE = sys.executable
+
+# Optional sibling skill: when present and running inside Herdr, sub-skill commands are shown live
+# in a shared Herdr pane. herdr_exec.sh itself decides whether to really use a pane (it falls back
+# to direct execution outside Herdr and for disabled accounts) and returns output/exit code as-is.
+HERDR_EXEC = ROOT_DIR / "herdr-exec" / "scripts" / "herdr_exec.sh"
+
+
+def herdr_wrap(cmd: list[str]) -> list[str]:
+    """Prefix a sub-skill command with herdr_exec.sh when running inside Herdr."""
+    if os.environ.get("HERDR_ENV") != "1" or not HERDR_EXEC.is_file():
+        return cmd
+    label = next((Path(arg).parent.parent.name for arg in cmd if arg.endswith(".py")), "workflow")
+    return ["bash", str(HERDR_EXEC), "--label", label, "--", *cmd]
 
 
 def _with_backend(result: dict, backend: str) -> dict:
@@ -117,7 +131,7 @@ def _select_backend(explicit: str | None, preferred: str | None, ready_backends:
 
 def run_json(cmd: list[str], workdir: Path) -> dict:
     proc = subprocess.run(
-        cmd,
+        herdr_wrap(cmd),
         capture_output=True,
         text=True,
         cwd=str(workdir),
@@ -475,6 +489,45 @@ def observe_project(workspace: Path, full_config: dict, explicit: str | None) ->
     return {"status": "ok", "action": "observe", "summary": "Generated probe-rs RTT observation command", "details": {"command": cmd, "backend": "probe-rs"}}
 
 
+def _probe_cmd(backend: str, workspace: Path, full_config: dict) -> list[str]:
+    """Build the read-only connectivity check command for one debug-probe backend."""
+    if backend == "jlink":
+        cfg = full_config.get("jlink", {})
+        cmd = [PYTHON_EXE, str(ROOT_DIR / "jlink" / "scripts" / "jlink_exec.py"), "info",
+               "--workspace", str(workspace), "--device", cfg["device"], "--json"]
+        options = (("interface", "--interface"), ("speed", "--speed"), ("jtag_conf", "--jtag-conf"))
+    elif backend == "openocd":
+        cfg = full_config.get("openocd", {})
+        cmd = [PYTHON_EXE, str(ROOT_DIR / "openocd" / "scripts" / "openocd_run.py"), "probe",
+               "--workspace", str(workspace), "--json"]
+        options = (("board", "--board"), ("interface", "--interface"), ("target", "--target"))
+    else:
+        cfg = full_config.get("probe-rs", {})
+        cmd = [PYTHON_EXE, str(ROOT_DIR / "probe-rs" / "scripts" / "probe_rs_exec.py"), "info",
+               "--workspace", str(workspace), "--chip", cfg["chip"], "--json"]
+        options = (("protocol", "--protocol"), ("probe", "--probe"), ("speed", "--speed"))
+    for key, flag in options:
+        if cfg.get(key):
+            cmd.extend([flag, str(cfg[key])])
+    return cmd
+
+
+def probe_target(workspace: Path, full_config: dict, explicit: str | None) -> dict:
+    """Read-only check that the configured debug probe can reach the target (no flash, no state)."""
+    workflow_config = full_config.get("workflow", {})
+    selected, error = _select_backend(
+        explicit,
+        workflow_config.get("preferred_probe") or workflow_config.get("preferred_flash"),
+        [name for name, ready in (("openocd", _is_openocd_ready(full_config)), ("jlink", _is_jlink_ready(full_config)), ("probe-rs", _is_probe_rs_ready(full_config))) if ready],
+        "probe",
+    )
+    if error:
+        return {"status": "error", "action": "probe", "error": error}
+    if selected not in ("jlink", "openocd", "probe-rs"):
+        return {"status": "error", "action": "probe", "error": {"code": "unknown_backend", "message": f"Unknown probe backend: {selected}"}}
+    return _with_backend(run_json(_probe_cmd(selected, workspace, full_config), workspace), selected)
+
+
 def diagnose(workspace: Path, full_config: dict, discovery: dict, state: dict) -> dict:
     workflow_config = full_config.get("workflow", {})
     hints = []
@@ -504,13 +557,14 @@ def diagnose(workspace: Path, full_config: dict, discovery: dict, state: dict) -
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="workflow run")
-    parser.add_argument("action", choices=["plan", "build", "build-flash", "build-debug", "observe", "diagnose"])
+    parser.add_argument("action", choices=["plan", "probe", "build", "build-flash", "build-debug", "observe", "diagnose"])
     parser.add_argument("--workspace", default=None, help="Workspace root directory, defaults to current directory")
     parser.add_argument("--config", default=None, help="workflow config.json path (deprecated, kept for compatibility)")
     parser.add_argument("--build-backend", choices=["auto", "keil", "gcc", "eide"], default=None)
     parser.add_argument("--flash-backend", choices=["auto", "jlink", "openocd", "probe-rs"], default=None)
     parser.add_argument("--debug-backend", choices=["auto", "jlink", "openocd", "probe-rs"], default=None)
     parser.add_argument("--observe-backend", choices=["auto", "jlink", "openocd", "probe-rs"], default=None)
+    parser.add_argument("--probe-backend", choices=["auto", "jlink", "openocd", "probe-rs"], default=None)
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args()
 
@@ -546,6 +600,8 @@ def main() -> None:
         if config_path:
             cmd.extend(["--config", config_path])
         result = run_json(cmd, workspace)
+    elif args.action == "probe":
+        result = probe_target(workspace, full_config, args.probe_backend)
     elif args.action == "build":
         result = build_project(workspace, full_config, discovery, args.build_backend)
         if result.get("status") == "ok" and result.get("details", {}).get("backend"):

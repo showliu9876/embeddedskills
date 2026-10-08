@@ -20,6 +20,7 @@ The `observe` phase currently provides candidate observation backends: `jlink:rt
 ```bash
 python <skill-dir>/scripts/workflow_plan.py --json
 python <skill-dir>/scripts/workflow_run.py plan --json
+python <skill-dir>/scripts/workflow_run.py probe --json        # read-only: is the debug probe connected to the target?
 python <skill-dir>/scripts/workflow_run.py build --json
 python <skill-dir>/scripts/workflow_run.py build-flash --json
 python <skill-dir>/scripts/workflow_run.py build-debug --json
@@ -77,3 +78,5 @@ After successful execution, the practically used backend is automatically writte
 - `observe` only generates recommended commands and does not hold observation channels open long-term within workflow
 - On failure, report which stage failed along with structured errors from underlying scripts
 - Workflow inter-skill coordination operates exclusively via `.embeddedskills/config.json`, `.embeddedskills/state.json`, and invoking underlying skill scripts as subprocesses
+- `probe` is read-only: it picks the backend like `flash` (`--probe-backend`, else `workflow.preferred_probe`, else `workflow.preferred_flash`, else the single configured one) and runs `jlink_exec.py info`, `openocd_run.py probe` or `probe_rs_exec.py info`. It never flashes and writes neither `state.json` nor preferred backends
+- When `HERDR_ENV=1` and the sibling `herdr-exec` skill is present, every sub-skill subprocess is routed through `herdr-exec/scripts/herdr_exec.sh` (`herdr_wrap()` in `workflow_run.py`) so the user can watch it in a shared Herdr pane; results and exit codes are unchanged, and the wrapper falls back to direct execution outside Herdr
