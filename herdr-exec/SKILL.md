@@ -5,6 +5,7 @@ description: >-
   jlink, net, openocd, probe-rs, serial, ssh, terminal or workflow skills and HERDR_ENV=1, wrap the command
   with this skill's herdr_exec.sh so the user can watch exactly what runs. Output, stderr and exit code are
   returned unchanged; outside Herdr (or for disabled accounts) it simply runs the command directly.
+  Also defines the default UART debug console in Herdr: a dedicated picocom pane with a log file.
 ---
 
 # Herdr Exec — run embeddedskills commands in a visible Herdr pane
@@ -60,6 +61,47 @@ Example:
   for the outer call's lock forever.)
 - `PATH`, `PYTHONPATH`, `VIRTUAL_ENV`, `CONDA_PREFIX`, `JLINK_BIN`, `JLINK_SN` and the caller's cwd are
   carried into the pane.
+
+## UART debug console (default workflow)
+
+When a debug session in Herdr needs the target's UART console, **do not** stream it through
+`serial_monitor.py` in the shared `embedded-skills` pane, and **do not** use the `serial` mux.
+Open a dedicated pane running `picocom` with a log file instead: the user gets an interactive console,
+and the agent reads the log file without ever opening the serial port.
+
+1. Check the port is free (`fuser /dev/ttyUSB0` prints nothing).
+2. Open the console pane (use the project's port/baud from `.embeddedskills/config.json` → `serial`):
+
+   ```bash
+   log="$PWD/.embeddedskills/logs/serial/uart-$(date +%Y%m%d-%H%M%S).log"
+   mkdir -p "$(dirname "$log")"
+   pane="$(.claude/skills/herdr-exec/scripts/herdr_exec.sh --get-pane uart-console)"
+   herdr pane run "$pane" "picocom -b 115200 --imap lfcrlf --logfile $log /dev/ttyUSB0"
+   ```
+
+   `--get-pane` reuses an idle managed pane (or splits one) and labels it `uart-console`. The log path is
+   absolute because a reused pane may have a different cwd.
+
+   `--imap lfcrlf` is needed because firmware often prints bare `\n`: without it the
+   pane shows a "staircase". Strip `\r` when parsing the log (`tr -d '\r'`).
+
+   Tell the user the pane name and the log path. They exit picocom with `Ctrl-A Ctrl-X`.
+3. Read the console from the log file (`tail`, `grep`). `herdr pane read <pane> --lines N` also works,
+   but the log file has the full history.
+4. **Sending to the target**: type into the console with `herdr pane send-text <pane> "<text>"`, and only
+   after the user approved that specific input. picocom stays the only writer, and the user sees what was sent.
+5. While the console pane is open, **do not run any `serial_*.py` script on the same port**: pyserial does
+   not honour picocom's `flock`, so both would read the port and split the data (symptoms: garbled lines
+   and `device reports readiness to read but returned no data`).
+6. **Per-line host timestamps** (picocom's log has none): ask the user to close the console, run one
+   `serial_monitor.py --port <port> --timestamp --timeout <sec>` capture directly on the port, then reopen
+   the console.
+
+Do not start `serial_mux.py`. Everything it offers is covered above with fewer moving parts, and it is
+currently broken with the skill scripts: `state.json` stores `real_port` as a relative path
+(`../../dev/ttyUSB0`), so `serial_monitor.py`/`serial_log.py` do not recognise the running mux and open the
+real port directly, competing with the mux. Reconsider only if the console must run outside
+Herdr, or a long capture needs both timestamps and an uninterrupted console — and fix that bug first.
 
 ## Pane hygiene (before opening any pane)
 
