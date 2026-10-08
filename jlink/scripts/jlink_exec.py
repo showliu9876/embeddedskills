@@ -95,7 +95,8 @@ def parse_registers(stdout: str) -> dict:
 
 def parse_pc(stdout: str) -> str:
     """Extract PC value from output."""
-    m = re.search(r"PC\s*=\s*([0-9A-Fa-f]{8})", stdout)
+    # Cortex-M: "PC = 08001234"; Cortex-A/R: "PC: (R15) = 200A8FC0"
+    m = re.search(r"PC(?::\s*\(R15\))?\s*=\s*([0-9A-Fa-f]{8})", stdout)
     return f"0x{m.group(1)}" if m else ""
 
 

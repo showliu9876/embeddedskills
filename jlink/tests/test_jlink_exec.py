@@ -69,3 +69,12 @@ class TestParseOutput:
         stdout = "S/N: 123456789\nVTref=3.358V\nFound Cortex-A9 r4p1\nJ-Link>exit\n"
         parsed = jlink_exec.parse_output(stdout, "info")
         assert parsed["core"] == "Cortex-A9 r4p1"
+
+
+class TestParsePc:
+    def test_cortex_m_format(self):
+        assert jlink_exec.parse_pc("PC = 08001234, CycleCnt = 00000000") == "0x08001234"
+
+    def test_cortex_a_format(self):
+        stdout = "PC: (R15) = 200A8FC0, CPSR = 8000001F (System mode, ARM)"
+        assert jlink_exec.parse_pc(stdout) == "0x200A8FC0"
