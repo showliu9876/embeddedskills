@@ -5,6 +5,11 @@
 #
 # Usage:
 #   herdr_exec.sh [--label NAME] [--timeout-ms N] -- <command> [args...]
+#   herdr_exec.sh --get-pane NAME     print an idle pane labelled NAME (reused or created) and exit
+#
+# Before splitting a new pane, an idle pane (foreground process is only a shell) carrying one of the
+# labels this script manages (embedded-skills, uart-console) in the same workspace is reused.
+# Panes without such a label (the user's own shells, agents) are never touched, and no pane is closed.
 #
 # Environment:
 #   HERDR_EXEC_DISABLE=1          always run directly
@@ -26,12 +31,14 @@ TIMEOUT_MS="${HERDR_EXEC_TIMEOUT_MS:-600000}"
 IDLE_WAIT_MS="${HERDR_EXEC_IDLE_WAIT_MS:-3000}"
 PANE_LABEL="${HERDR_EXEC_PANE_LABEL:-embedded-skills}"
 DISABLED_USERS="${HERDR_EXEC_DISABLED_USERS:-}"
+MANAGED_LABELS=" embedded-skills uart-console ${PANE_LABEL} "   # only panes with these labels are reused
+GET_PANE=0
 SHELL_NAMES=" bash zsh sh dash fish "
 POLL_S=0.1
 WIDE_PANE_COLS=160     # split right when the caller pane is at least this wide, otherwise down
 PASS_ENV=(PATH PYTHONPATH VIRTUAL_ENV CONDA_PREFIX JLINK_BIN JLINK_SN)
 
-usage() { sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+usage() { sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 log() { echo "[herdr-exec] $*" >&2; }
 
 parse_args() {
@@ -39,11 +46,16 @@ parse_args() {
     case "$1" in
       --label) LABEL="${2:-}"; shift 2 ;;
       --timeout-ms) TIMEOUT_MS="${2:-}"; shift 2 ;;
+      --get-pane) GET_PANE=1; PANE_LABEL="${2:-}"; MANAGED_LABELS+="${PANE_LABEL} "; shift $(( $# > 1 ? 2 : 1 )) ;;
       --) shift; break ;;
       -h|--help) usage ;;
       *) break ;;
     esac
   done
+  if (( GET_PANE )); then
+    [[ -n "${PANE_LABEL}" ]] || { log "missing pane label"; usage; }
+    return 0
+  fi
   [[ $# -gt 0 ]] || { log "missing command"; usage; }
   [[ "${TIMEOUT_MS}" =~ ^[0-9]+$ ]] || { log "invalid --timeout-ms '${TIMEOUT_MS}'"; usage; }
   CMD=("$@")
@@ -89,15 +101,56 @@ create_pane() {
   echo "${pane}"
 }
 
+# Print an idle pane in this workspace that carries one of MANAGED_LABELS (never the caller's pane).
+# ponytail: one `pane get` per pane (the list has no labels); fine for the handful of panes in a workspace.
+find_idle_pane() {
+  local ws_args=() p label
+  [[ -n "${HERDR_WORKSPACE_ID:-}" ]] && ws_args=(--workspace "${HERDR_WORKSPACE_ID}")
+  for p in $(herdr pane list "${ws_args[@]}" 2>/dev/null | jq -r '.result.panes[]?.pane_id' 2>/dev/null); do
+    [[ "${p}" == "${HERDR_PANE_ID}" ]] && continue
+    label="$(herdr pane get "${p}" 2>/dev/null | jq -r '.result.pane.label // empty' 2>/dev/null)"
+    [[ -n "${label}" && "${MANAGED_LABELS}" == *" ${label} "* ]] || continue
+    pane_is_idle "${p}" && { echo "${p}"; return 0; }
+  done
+  return 1
+}
+
+# Reuse an idle managed pane (relabelled to PANE_LABEL), otherwise split a new one.
+idle_or_new_pane() {
+  local pane
+  if pane="$(find_idle_pane)"; then
+    herdr pane rename "${pane}" "${PANE_LABEL}" >/dev/null 2>&1 || true
+    echo "${pane}"; return 0
+  fi
+  create_pane
+}
+
 shared_pane() {
   local pane_file="$1" pane=""
   [[ -f "${pane_file}" ]] && pane="$(<"${pane_file}")"
   if [[ -n "${pane}" ]] && pane_exists "${pane}" && wait_idle "${pane}"; then
     echo "${pane}"; return 0
   fi
-  pane="$(create_pane)" || return 1
+  pane="$(idle_or_new_pane)" || return 1
   echo "${pane}" > "${pane_file}"
   echo "${pane}"
+}
+
+state_dir() { echo "${HERDR_EXEC_STATE_DIR:-${XDG_RUNTIME_DIR:-/tmp}/herdr-exec-$(id -u)}"; }
+pane_file() { echo "$1/${HERDR_WORKSPACE_ID//[^A-Za-z0-9_-]/_}.pane"; }
+
+# --get-pane: hand an idle pane to the caller (e.g. for the UART console). If it was the shared
+# embedded-skills pane, forget it so later runs do not wait on whatever the caller starts in it.
+get_pane() {
+  local dir pane
+  use_herdr || { log "not inside Herdr (or disabled for this user)"; exit 1; }
+  dir="$(state_dir)"; mkdir -p -m 700 "${dir}" || exit 1
+  exec 9> "${dir}/lock"
+  command -v flock >/dev/null 2>&1 && flock -w $(( TIMEOUT_MS / 1000 + 1 )) 9
+  pane="$(idle_or_new_pane)" || { log "could not get a Herdr pane"; exit 1; }
+  [[ -f "$(pane_file "${dir}")" && "$(<"$(pane_file "${dir}")")" == "${pane}" ]] && rm -f "$(pane_file "${dir}")"
+  echo "${pane}"
+  exit 0
 }
 
 write_runner() {
@@ -136,9 +189,9 @@ wait_done() {
 run_in_pane() {
   local state_dir pane_file pane run_dir rc
   FALLBACK=1
-  state_dir="${HERDR_EXEC_STATE_DIR:-${XDG_RUNTIME_DIR:-/tmp}/herdr-exec-$(id -u)}"
+  state_dir="$(state_dir)"
   mkdir -p -m 700 "${state_dir}" || return 1
-  pane_file="${state_dir}/${HERDR_WORKSPACE_ID//[^A-Za-z0-9_-]/_}.pane"
+  pane_file="$(pane_file "${state_dir}")"
 
   exec 9> "${state_dir}/lock"
   command -v flock >/dev/null 2>&1 && flock -w $(( TIMEOUT_MS / 1000 + 1 )) 9
@@ -178,6 +231,7 @@ run_nested() {
 
 main() {
   parse_args "$@"
+  (( GET_PANE )) && get_pane
   [[ -n "${HERDR_EXEC_TTY:-}" ]] && run_nested
   if use_herdr; then
     run_in_pane; local rc=$?

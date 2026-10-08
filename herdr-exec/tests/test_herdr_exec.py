@@ -27,13 +27,17 @@ STUB_HERDR = textwrap.dedent(r"""\
         printf '{"result":{"pane":{"pane_id":"w9:p%s"}}}\n' "$n" ;;
       "pane get")
         grep -qx "$3" "$state/panes" 2>/dev/null || { echo '{"error":"not found"}' >&2; exit 1; }
-        printf '{"result":{"pane":{"pane_id":"%s"}}}\n' "$3" ;;
+        label=null; [ -f "$state/label_$3" ] && label="\"$(cat "$state/label_$3")\""
+        printf '{"result":{"pane":{"pane_id":"%s","label":%s}}}\n' "$3" "$label" ;;
+      "pane list")
+        ids=$(sed 's/.*/{"pane_id":"&"}/' "$state/panes" 2>/dev/null | paste -sd, -)
+        printf '{"result":{"panes":[%s]}}\n' "$ids" ;;
       "pane process-info")
-        name=bash; [ -f "$state/busy" ] && name=python3
+        name=bash; [ -f "$state/busy" ] || [ -f "$state/busy_$4" ] && name=python3
         printf '{"result":{"process_info":{"foreground_processes":[{"name":"%s"}]}}}\n' "$name" ;;
       "pane layout")
         printf '{"result":{"layout":{"panes":[{"pane_id":"w9:p0","rect":{"width":%s,"height":40}}]}}}\n' "${STUB_WIDTH:-200}" ;;
-      "pane rename") echo '{"result":{}}' ;;
+      "pane rename") echo "$4" > "$state/label_$3"; echo '{"result":{}}' ;;
       "pane run")
         bash -c "$4" > "$state/pane_output_$3.log" 2>&1 &
         echo '{"result":{}}' ;;
@@ -161,6 +165,69 @@ class TestHerdrPane:
         assert "still running" in r.stderr
 
 
+def add_pane(env, pane, label=None, busy=False):
+    """Simulate a pane that already exists in the workspace (e.g. left over from an earlier run)."""
+    with open(env["stub_dir"] / "panes", "a") as f:
+        f.write(pane + "\n")
+    if label:
+        (env["stub_dir"] / f"label_{pane}").write_text(label)
+    if busy:
+        (env["stub_dir"] / f"busy_{pane}").write_text("1")
+
+
+class TestReuseIdlePane:
+    def test_reuses_idle_managed_pane_instead_of_splitting(self, env):
+        add_pane(env, "w9:p7", label="uart-console")
+        r = run(env, "--", "true")
+        assert r.returncode == 0
+        assert calls(env, "pane split") == []
+        assert {c.split()[2] for c in calls(env, "pane run")} == {"w9:p7"}
+        assert (env["stub_dir"] / "label_w9:p7").read_text().strip() == "embedded-skills"
+
+    def test_never_reuses_unlabelled_or_foreign_panes(self, env):
+        add_pane(env, "w9:p5")                      # the user's own shell
+        add_pane(env, "w9:p6", label="my-notes")    # labelled by the user
+        run(env, "--", "true")
+        assert len(calls(env, "pane split")) == 1
+        assert not any(c.split()[2] in ("w9:p5", "w9:p6") for c in calls(env, "pane run"))
+
+    def test_skips_busy_managed_pane(self, env):
+        add_pane(env, "w9:p7", label="uart-console", busy=True)   # picocom still running
+        run(env, "--", "true")
+        assert len(calls(env, "pane split")) == 1
+
+    def test_never_reuses_the_caller_pane(self, env):
+        add_pane(env, "w9:p0", label="embedded-skills")
+        run(env, "--", "true")
+        assert len(calls(env, "pane split")) == 1
+
+    def test_get_pane_reuses_idle_pane_and_relabels_it(self, env):
+        add_pane(env, "w9:p7", label="embedded-skills")
+        r = run(env, "--get-pane", "uart-console")
+        assert (r.returncode, r.stdout.strip()) == (0, "w9:p7")
+        assert calls(env, "pane split") == []
+        assert (env["stub_dir"] / "label_w9:p7").read_text().strip() == "uart-console"
+
+    def test_get_pane_creates_one_when_none_is_idle(self, env):
+        r = run(env, "--get-pane", "uart-console")
+        assert (r.returncode, r.stdout.strip()) == (0, "w9:p1")
+        assert len(calls(env, "pane split")) == 1
+        assert calls(env, "pane run") == []
+
+    def test_get_pane_takes_over_shared_pane_so_next_run_does_not_wait_on_it(self, env):
+        run(env, "--", "true")                                   # shared pane w9:p1
+        assert run(env, "--get-pane", "uart-console").stdout.strip() == "w9:p1"
+        (env["stub_dir"] / "busy_w9:p1").write_text("1")         # console now running in it
+        start = time.time()
+        run(env, "--", "true")
+        assert time.time() - start < 2                           # no 3 s idle wait on the old pane
+        assert len(calls(env, "pane split")) == 2
+
+    def test_get_pane_outside_herdr_fails(self, env):
+        r = run(env, "--get-pane", "uart-console", extra_env={"HERDR_ENV": ""})
+        assert r.returncode == 1 and r.stdout == ""
+
+
 class TestNested:
     """A wrapped command (e.g. workflow) that itself calls herdr_exec.sh must not deadlock."""
 
@@ -187,6 +254,10 @@ class TestNested:
 class TestUsage:
     def test_missing_command_is_usage_error(self, env):
         r = run(env, "--label", "x", "--")
+        assert r.returncode == 2
+
+    def test_get_pane_without_label_is_usage_error(self, env):
+        r = run(env, "--get-pane")
         assert r.returncode == 2
 
     def test_bad_timeout_is_usage_error(self, env):

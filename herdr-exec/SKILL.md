@@ -49,7 +49,9 @@ Example:
   (right when the caller pane is ≥160 columns wide, otherwise down) and renamed `embedded-skills`.
   The user's focus never moves.
 - The pane is reused while it exists and its foreground process is a shell. If the user closed it or
-  something is still running in it, a new pane is created.
+  something is still running in it, an **idle pane labelled `embedded-skills` or `uart-console`** in the same
+  workspace is reused (and relabelled) before a new pane is split. Panes without one of these labels — the
+  user's own shells, other agents — and the caller's own pane are never reused.
 - Each run shows `> [label] command`, the live output, and `= [label] exit=N (Ns)` in the pane.
 - Runs are serialised with a lock, so parallel tool calls do not type into the same pane at once.
 - **Nested calls** (a wrapped command that itself calls `herdr_exec.sh`, e.g. `workflow` → `jlink`) are
@@ -58,6 +60,17 @@ Example:
   for the outer call's lock forever.)
 - `PATH`, `PYTHONPATH`, `VIRTUAL_ENV`, `CONDA_PREFIX`, `JLINK_BIN`, `JLINK_SN` and the caller's cwd are
   carried into the pane.
+
+## Pane hygiene (before opening any pane)
+
+- Always get panes through `herdr_exec.sh` (`--label` for commands, `--get-pane <label>` for an
+  interactive pane such as the UART console). Both reuse an idle managed pane first; never call
+  `herdr pane split` directly.
+- A reused pane keeps its position, size and cwd. If a task genuinely needs a pane with different
+  parameters (another split direction or size, a different tab, a fresh terminal), do **not** split yet:
+  list the idle managed panes (`herdr pane list` + `herdr pane get` label + `process-info`), **ask the user
+  whether they may be closed**, and only after they agree close them (`herdr pane close <id>`) and open the
+  new one. Never close a pane without that answer.
 
 ## Safety
 
