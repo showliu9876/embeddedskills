@@ -56,6 +56,10 @@ ERROR_PATTERNS = [
     (r"VTarget too low", "vtarget_low", "Target voltage too low. Check target board power supply."),
 ]
 
+# Every command template ends with "exit"; if its echo is missing, JLinkExe stopped early
+# (e.g. it consumed the rest of the script as the answer to an interactive prompt).
+SCRIPT_END_MARKER = "J-Link>exit"
+
 # Default JTAG chain position: "-1,-1" lets J-Link auto-detect the device in the chain.
 DEFAULT_JTAG_CONF = "-1,-1"
 
@@ -103,6 +107,14 @@ def parse_output(stdout: str, action: str) -> dict:
     for pattern, code, message in ERROR_PATTERNS:
         if re.search(pattern, stdout, re.IGNORECASE):
             return {"error_code": code, "error_message": message, "raw": stdout}
+
+    if SCRIPT_END_MARKER not in stdout:
+        return {
+            "error_code": "script_aborted",
+            "error_message": "JLinkExe stopped before the end of the command script; the target may not "
+                             "be connected. For JTAG, check the JTAG chain position (--jtag-conf).",
+            "raw": stdout,
+        }
 
     # info: extract firmware version and target info
     if action == "info":

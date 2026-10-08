@@ -158,6 +158,9 @@ python <skill-dir>/scripts/jlink_exec.py run-to --device GD32F470ZG --address 0x
 Common optional arguments: `--interface SWD|JTAG`, `--speed 4000`, `--serial-no <serial>`, `--exe <JLinkExe path>`,
 `--jtag-conf IRPre,DRPre` (JTAG only)
 
+If JLinkExe stops before the end of the command script, the result is an error with code `script_aborted`
+(the target was most likely never connected).
+
 ### jlink_rtt.py — RTT Log Capture
 
 ```bash
